@@ -26,7 +26,6 @@ func WithCaseSensitive() opt {
 }
 
 // FindAll tries to find out sub-strings from slice that match the passed argument in.
-// The default algorithm which is used to fuzzy searching is AlgoNoFuzzy.
 func FindAll(in string, slice []string, opts ...opt) []Matched {
 	var opt option
 	for _, o := range opts {

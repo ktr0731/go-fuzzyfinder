@@ -141,7 +141,7 @@ func (f *finder) _draw() {
 			bg := termbox.ColorDefault
 			// Highlight selected strings.
 			if len(m.Pos) != 0 {
-				from, to := m.Pos[0][0], m.Pos[0][1]
+				from, to := m.Pos[0], m.Pos[1]
 				if !(from == 0 && to == 0) && (j >= from && j < to) {
 					if unicode.ToLower(f.state.input[posIdx]) == unicode.ToLower(r) {
 						fg |= termbox.ColorGreen
@@ -393,7 +393,7 @@ func (f *finder) filter() {
 
 	// TODO: If input is not delete operation, it is able to
 	// reduce total iteration.
-	matchedItems := strmatch.FindAll(string(f.state.input), f.state.items, strmatch.WithAlgo(strmatch.AlgoRegExp))
+	matchedItems := strmatch.FindAll(string(f.state.input), f.state.items)
 	var prevSelectedItemIdx int
 	if len(f.state.matched) != 0 {
 		prevSelectedItemIdx = f.state.matched[f.state.y].Idx
