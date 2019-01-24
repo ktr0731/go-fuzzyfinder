@@ -9,7 +9,7 @@ import (
 	"os"
 	"testing"
 
-	"github.com/ktr0731/iv/fuzzyfinder"
+	fuzzyfinder "github.com/ktr0731/go-fuzzyfinder"
 	termbox "github.com/nsf/termbox-go"
 )
 

@@ -10,7 +10,7 @@ import (
 	"unicode"
 	"unicode/utf8"
 
-	"github.com/ktr0731/iv/fuzzyfinder/strmatch"
+	"github.com/ktr0731/go-fuzzyfinder/strmatch"
 	runewidth "github.com/mattn/go-runewidth"
 	termbox "github.com/nsf/termbox-go"
 	"github.com/pkg/errors"

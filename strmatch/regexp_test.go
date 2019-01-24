@@ -3,7 +3,7 @@ package strmatch_test
 import (
 	"testing"
 
-	"github.com/ktr0731/iv/fuzzyfinder/strmatch"
+	"github.com/ktr0731/go-fuzzyfinder/strmatch"
 )
 
 func TestAlgoRegExp(t *testing.T) {
@@ -57,14 +57,14 @@ func TestAlgoRegExp(t *testing.T) {
 	}
 }
 
-func BenchmarkRegExp(b *testing.B) {
-	in := "ink"
-	slice := []string{
-		"WHITE ALBUM",
-		"SOUND OF DESTINY",
-		"Twinkle Snow",
-	}
-	for i := 0; i < b.N; i++ {
-		strmatch.FindAll(in, slice, strmatch.WithAlgo(strmatch.AlgoRegExp))
-	}
-}
+// func BenchmarkRegExp(b *testing.B) {
+// 	in := "ink"
+// 	slice := []string{
+// 		"WHITE ALBUM",
+// 		"SOUND OF DESTINY",
+// 		"Twinkle Snow",
+// 	}
+// 	for i := 0; i < b.N; i++ {
+// 		strmatch.FindAll(in, slice, strmatch.WithAlgo(strmatch.AlgoRegExp))
+// 	}
+// }

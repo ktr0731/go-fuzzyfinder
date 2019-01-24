@@ -9,8 +9,7 @@ import (
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
-	"github.com/ktr0731/iv/fuzzyfinder"
-	"github.com/ktr0731/iv/logger"
+	fuzzyfinder "github.com/ktr0731/go-fuzzyfinder"
 	termbox "github.com/nsf/termbox-go"
 )
 
@@ -50,7 +49,6 @@ func assertWithGolden(t *testing.T, f func(t *testing.T) string) {
 		if err := ioutil.WriteFile(fname, []byte(actual), 0644); err != nil {
 			t.Fatalf("failed to update the golden file: %s", err)
 		}
-		logger.Printf("golden updated: %s", fname)
 		return
 	}
 
