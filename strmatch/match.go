@@ -1,24 +1,15 @@
 package strmatch
 
-import (
-	"strings"
-)
+import "strings"
 
-func match(input string, _slice []string, opt option) (res []Matched) {
-	slice := _slice
-	if !opt.caseSensitive {
-		s := make([]string, len(slice))
-		input = strings.ToLower(input)
-		for i := range _slice {
-			s[i] = strings.ToLower(_slice[i])
-		}
-		slice = s
-	}
-
+// match iterates each string of slice for check whether it is matched to the input string.
+func match(input string, slice []string, opt option) (res []Matched) {
 	in := []rune(input)
 	for idxOfSlice, s := range slice {
-		var from int
-		var idx int
+		var from, idx int
+		if !opt.caseSensitive {
+			s = strings.ToLower(s)
+		}
 	LINE_MATCHING:
 		for i, r := range []rune(s) {
 			if r == in[idx] {
