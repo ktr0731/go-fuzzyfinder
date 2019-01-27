@@ -8,6 +8,9 @@ type Matched struct {
 	// Pos is the range of matched position.
 	// [2]int represents a closed interval of a position.
 	Pos [2]int
+	// Score is the value that indicates how it similar to the input string.
+	// The bigger Score, the more similar it is.
+	Score int
 }
 
 type opt optFunc

@@ -1,6 +1,10 @@
 package strmatch
 
-import "strings"
+import (
+	"strings"
+
+	"github.com/ktr0731/go-fuzzyfinder/scoring"
+)
 
 // match iterates each string of slice for check whether it is matched to the input string.
 func match(input string, slice []string, opt option) (res []Matched) {
@@ -19,8 +23,9 @@ func match(input string, slice []string, opt option) (res []Matched) {
 				idx++
 				if idx == len(in) {
 					res = append(res, Matched{
-						Idx: idxOfSlice,
-						Pos: [2]int{from, i + 1},
+						Idx:   idxOfSlice,
+						Pos:   [2]int{from, i + 1},
+						Score: scoring.Calculate(input, s),
 					})
 					break LINE_MATCHING
 				}

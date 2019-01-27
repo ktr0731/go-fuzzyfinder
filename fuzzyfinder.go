@@ -4,6 +4,7 @@ import (
 	"flag"
 	"fmt"
 	"reflect"
+	"sort"
 	"strings"
 	"sync"
 	"time"
@@ -17,7 +18,7 @@ import (
 )
 
 var (
-	// ErrAbort may be returned from FInd* functions if there are no selections.
+	// ErrAbort is returned from Find* functions if there are no selections.
 	ErrAbort   = errors.New("abort")
 	errEntered = errors.New("entered")
 )
@@ -377,6 +378,8 @@ func (f *finder) readKey() error {
 			}
 		}
 	case termbox.EventResize:
+		// TODO: change cursorY, drawable tracks
+
 		f.draw(200 * time.Millisecond)
 	}
 	return nil
@@ -398,6 +401,9 @@ func (f *finder) filter() {
 	if len(f.state.matched) != 0 {
 		prevSelectedItemIdx = f.state.matched[f.state.y].Idx
 	}
+	sort.Slice(matchedItems, func(i, j int) bool {
+		return matchedItems[i].Score > matchedItems[j].Score
+	})
 	f.state.matched = matchedItems
 	if len(f.state.matched) == 0 {
 		f.state.cursorY = 0
