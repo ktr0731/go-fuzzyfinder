@@ -6,43 +6,55 @@ import (
 )
 
 func smithWaterman(s1, s2 []rune) int {
-	// Penalties.
 	const (
-		match      = 3
-		mismatch   = 3
-		gap        = 2
-		openingGap = 10
+		openGap = 5 // Gap opening penalty.
+		extGap  = 1 // Gap extension penalty.
+
+		matchScore    = 1
+		mismatchScore = 1
+
+		firstCharBonus = 1
 	)
 
+	// The scoring matrix.
 	m := make([][]int, len(s1)+1)
 	for i := 0; i <= len(s1); i++ {
 		m[i] = make([]int, len(s2)+1)
 	}
 
-	// TODO: 初期状態がおかしい
+	if s1[0] == s2[0] {
+		m[1][1] = firstCharBonus
+	}
 
 	var maxScore int
 	gapOpening := true
 	for i := 1; i <= len(s1); i++ {
 		for j := 1; j <= len(s2); j++ {
-			s1gap := m[i-1][j] - gap
-			s2gap := m[i][j-1] - gap
+			// TODO: len(s) >= len(in) なので対象文字列にギャップは発生しない
+			s1gap, s2gap := m[i-1][j], m[i][j-1]
 			if gapOpening {
-				s1gap -= openingGap
-				s2gap -= openingGap
+				s1gap -= openGap
+				s2gap -= openGap
+			} else {
+				s1gap -= extGap
+				s2gap -= extGap
 			}
-			var matchScore int
+			var score int
 			if s1[i-1] != s2[j-1] {
-				matchScore = m[i-1][j-1] - match
+				score = m[i-1][j-1] - matchScore
 			} else {
-				matchScore = m[i-1][j-1] + mismatch
+				score = m[i-1][j-1] + mismatchScore
 			}
-			m[i][j] = max(s1gap, s2gap, matchScore, 0)
+			m[i][j] += max(s1gap, s2gap, score, 0)
+
+			// Update the max score.
 			maxScore = max(m[i][j], maxScore)
-			if m[i][j] == matchScore {
-				gapOpening = true
-			} else {
+
+			gapAdded := m[i][j] != score
+			if gapAdded {
 				gapOpening = false
+			} else {
+				gapOpening = true
 			}
 		}
 	}
