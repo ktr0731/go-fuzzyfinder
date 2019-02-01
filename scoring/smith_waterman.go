@@ -1,8 +1,8 @@
 package scoring
 
 import (
-	"flag"
 	"fmt"
+	"os"
 )
 
 func smithWaterman(s1, s2 []rune) int {
@@ -13,7 +13,7 @@ func smithWaterman(s1, s2 []rune) int {
 		matchScore    = 1
 		mismatchScore = 1
 
-		firstCharBonus = 1
+		firstCharBonus = 1 // The first char of s1 is equal to s2's one.
 	)
 
 	// The scoring matrix.
@@ -59,7 +59,7 @@ func smithWaterman(s1, s2 []rune) int {
 		}
 	}
 
-	if isInTesting() {
+	if isDebug() {
 		fmt.Printf("%4c     ", '|')
 		for i := 0; i < len(s2); i++ {
 			fmt.Printf("%3c ", s2[i])
@@ -81,6 +81,6 @@ func smithWaterman(s1, s2 []rune) int {
 	return maxScore
 }
 
-func isInTesting() bool {
-	return flag.Lookup("test.v") != nil
+func isDebug() bool {
+	return os.Getenv("DEBUG") != ""
 }
