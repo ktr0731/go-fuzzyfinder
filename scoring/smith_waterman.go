@@ -3,84 +3,121 @@ package scoring
 import (
 	"fmt"
 	"os"
+	"unicode"
 )
 
+// smithWaterman calculates a simularity score between s1 and s2
+// by smith-waterman algorithm. smith-waterman algorithm is one of
+// local alignment algorithms and it uses dynamic programming.
+//
+// In this smith-waterman algorithm, we use the affine gap penalty.
+// Please see https://en.wikipedia.org/wiki/Gap_penalty#Affine for additional
+// information about the affine gap penalty.
+//
+// We calculate the gap penalty by the Gotoh's algorithm, which optimizes
+// the calculation from O(M^2N) to O(MN).
+// Please see ftp://150.128.97.71/pub/Bioinformatica/gotoh1982.pdf for more details.
 func smithWaterman(s1, s2 []rune) int {
 	const (
 		openGap = 5 // Gap opening penalty.
 		extGap  = 1 // Gap extension penalty.
 
-		matchScore    = 1
+		matchScore    = 5
 		mismatchScore = 1
 
-		firstCharBonus = 1 // The first char of s1 is equal to s2's one.
+		firstCharBonus = 3 // The first char of s1 is equal to s2's one.
 	)
 
 	// The scoring matrix.
 	m := make([][]int, len(s1)+1)
+	// A matrix that calculates gap penalties until each position (i, j).
+	P := make([][]int, len(s1)+1)
 	for i := 0; i <= len(s1); i++ {
 		m[i] = make([]int, len(s2)+1)
+		P[i] = make([]int, len(s2)+1)
 	}
 
-	if s1[0] == s2[0] {
-		m[1][1] = firstCharBonus
+	for i := 0; i <= len(s1); i++ {
+		P[i][0] = -openGap - i*extGap
 	}
+
+	///
+
+	bonus := make([]int, len(s1))
+	bonus[0] = firstCharBonus
+	prevCh := s1[0]
+	prevIsDelimiter := isDelimiter(prevCh)
+	for i, r := range s1[1:] {
+		isDelimiter := isDelimiter(r)
+		if prevIsDelimiter && !isDelimiter {
+			bonus[i] = firstCharBonus
+		}
+		prevIsDelimiter = isDelimiter
+	}
+
+	///
 
 	var maxScore int
-	gapOpening := true
 	for i := 1; i <= len(s1); i++ {
 		for j := 1; j <= len(s2); j++ {
-			// TODO: len(s) >= len(in) なので対象文字列にギャップは発生しない
-			s1gap, s2gap := m[i-1][j], m[i][j-1]
-			if gapOpening {
-				s1gap -= openGap
-				s2gap -= openGap
-			} else {
-				s1gap -= extGap
-				s2gap -= extGap
-			}
+			p := P[i-1][j] + bonus[i-1]
 			var score int
 			if s1[i-1] != s2[j-1] {
-				score = m[i-1][j-1] - matchScore
+				score = m[i-1][j-1] - mismatchScore
 			} else {
-				score = m[i-1][j-1] + mismatchScore
+				score = m[i-1][j-1] + matchScore + bonus[i-1]
 			}
-			m[i][j] += max(s1gap, s2gap, score, 0)
+			m[i][j] += max(p, score, 0)
+
+			P[i][j] = max(m[i-1][j]-openGap, P[i-1][j]-extGap)
 
 			// Update the max score.
 			maxScore = max(m[i][j], maxScore)
-
-			gapAdded := m[i][j] != score
-			if gapAdded {
-				gapOpening = false
-			} else {
-				gapOpening = true
-			}
 		}
 	}
 
 	if isDebug() {
-		fmt.Printf("%4c     ", '|')
-		for i := 0; i < len(s2); i++ {
-			fmt.Printf("%3c ", s2[i])
-		}
-		fmt.Printf("\n-------------------------\n")
+		printSlice := func(m [][]int) {
+			fmt.Printf("%4c     ", '|')
+			for i := 0; i < len(s2); i++ {
+				fmt.Printf("%3c ", s2[i])
+			}
+			fmt.Printf("\n-------------------------\n")
 
-		fmt.Print("   | ")
-		for i := 0; i <= len(s1); i++ {
-			if i != 0 {
-				fmt.Printf("%3c| ", s1[i-1])
+			fmt.Print("   | ")
+			for i := 0; i <= len(s1); i++ {
+				if i != 0 {
+					fmt.Printf("%3c| ", s1[i-1])
+				}
+				for j := 0; j <= len(s2); j++ {
+					fmt.Printf("%3d ", m[i][j])
+				}
+				fmt.Println()
 			}
-			for j := 0; j <= len(s2); j++ {
-				fmt.Printf("%3d ", m[i][j])
-			}
-			fmt.Println()
+			println()
 		}
+		printSlice(m)
+		printSlice(P)
 	}
 
-	return maxScore
+	return maxScore + (maxScore * 100 / len(s1))
+	// return maxScore
 }
 
 func isDebug() bool {
 	return os.Getenv("DEBUG") != ""
+}
+
+var delimiterRunes = map[rune]interface{}{
+	'/': nil,
+	'-': nil,
+	'_': nil,
+	'.': nil,
+}
+
+func isDelimiter(r rune) bool {
+	if _, ok := delimiterRunes[r]; ok {
+		return true
+	}
+	return unicode.IsSpace(r)
 }

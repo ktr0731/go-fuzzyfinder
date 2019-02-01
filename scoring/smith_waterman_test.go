@@ -5,7 +5,7 @@ import (
 )
 
 func Test_smithWaterman(t *testing.T) {
-	t.Skip("TODO")
+	// t.Skip("TODO")
 	score := smithWaterman([]rune("TACGGGCCCGCTA"), []rune("TAGCCCTA"))
 	if score != 13 {
 		t.Errorf("expected 13, but got %d", score)

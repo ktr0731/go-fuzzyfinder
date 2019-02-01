@@ -23,9 +23,10 @@ func match(input string, slice []string, opt option) (res []Matched) {
 				idx++
 				if idx == len(in) {
 					res = append(res, Matched{
-						Idx:   idxOfSlice,
-						Pos:   [2]int{from, i + 1},
-						Score: scoring.Calculate(input, s),
+						Idx: idxOfSlice,
+						Pos: [2]int{from, i + 1},
+						// TODO: 引数と順番をあわせる
+						Score: scoring.Calculate(s, input),
 					})
 					break LINE_MATCHING
 				}
