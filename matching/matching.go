@@ -2,6 +2,7 @@ package matching
 
 import (
 	"strings"
+	"unicode"
 
 	"github.com/ktr0731/go-fuzzyfinder/scoring"
 )
@@ -22,15 +23,23 @@ type Matched struct {
 type opt optFunc
 type optFunc func(*option)
 
+type Mode int
+
+const (
+	ModeSmart Mode = iota
+	ModeCaseSensitive
+	ModeCaseInsensitive
+)
+
 // option represents available options and its default values.
 type option struct {
-	caseSensitive bool
+	mode Mode
 }
 
-// WithCaseSensitive enables a case sensitive searching.
-func WithCaseSensitive() opt {
+// WithMode specifies a matching mode.
+func WithMode(m Mode) opt {
 	return func(o *option) {
-		o.caseSensitive = true
+		o.mode = m
 	}
 }
 
@@ -45,13 +54,21 @@ func FindAll(in string, slice []string, opts ...opt) []Matched {
 
 // match iterates each string of slice for check whether it is matched to the input string.
 func match(input string, slice []string, opt option) (res []Matched) {
-	if !opt.caseSensitive {
-		input = strings.ToLower(input)
+	if opt.mode == ModeSmart {
+		// Find an upper-case rune
+		n := strings.IndexFunc(input, unicode.IsUpper)
+		if n == -1 {
+			opt.mode = ModeCaseInsensitive
+			input = strings.ToLower(input)
+		} else {
+			opt.mode = ModeCaseSensitive
+		}
 	}
+
 	in := []rune(input)
 	for idxOfSlice, s := range slice {
 		var from, idx int
-		if !opt.caseSensitive {
+		if opt.mode == ModeCaseInsensitive {
 			s = strings.ToLower(s)
 		}
 	LINE_MATCHING:

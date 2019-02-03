@@ -396,7 +396,7 @@ func (f *finder) filter() {
 
 	// TODO: If input is not delete operation, it is able to
 	// reduce total iteration.
-	matchedItems := matching.FindAll(string(f.state.input), f.state.items, matching.WithCaseSensitive())
+	matchedItems := matching.FindAll(string(f.state.input), f.state.items, matching.WithMode(matching.Mode(f.opt.mode)))
 	var prevSelectedItemIdx int
 	if len(f.state.matched) != 0 {
 		prevSelectedItemIdx = f.state.matched[f.state.y].Idx
