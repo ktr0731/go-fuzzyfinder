@@ -8,6 +8,9 @@ import (
 
 // match iterates each string of slice for check whether it is matched to the input string.
 func match(input string, slice []string, opt option) (res []Matched) {
+	if !opt.caseSensitive {
+		input = strings.ToLower(input)
+	}
 	in := []rune(input)
 	for idxOfSlice, s := range slice {
 		var from, idx int

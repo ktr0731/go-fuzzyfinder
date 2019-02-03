@@ -396,7 +396,7 @@ func (f *finder) filter() {
 
 	// TODO: If input is not delete operation, it is able to
 	// reduce total iteration.
-	matchedItems := strmatch.FindAll(string(f.state.input), f.state.items)
+	matchedItems := strmatch.FindAll(string(f.state.input), f.state.items, strmatch.WithCaseSensitive())
 	var prevSelectedItemIdx int
 	if len(f.state.matched) != 0 {
 		prevSelectedItemIdx = f.state.matched[f.state.y].Idx
@@ -468,7 +468,6 @@ func (f *finder) find(items []string, matched []strmatch.Matched, opts []option)
 				}
 				return idxs, nil
 			}
-			panic(f.state.matched[f.state.y].Score)
 			return []int{f.state.matched[f.state.y].Idx}, nil
 		case err != nil:
 			return nil, errors.Wrap(err, "failed to read a key")
