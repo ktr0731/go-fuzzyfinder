@@ -13,7 +13,7 @@ func Calculate(s1, s2 string) int {
 
 // max returns the biggest number from passed args.
 // If the number of args is 0, it always returns 0.
-func max(n ...int) (min int) {
+func max(n ...int32) (min int32) {
 	if len(n) == 0 {
 		return 0
 	}

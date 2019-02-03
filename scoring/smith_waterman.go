@@ -19,31 +19,32 @@ import (
 // Please see ftp://150.128.97.71/pub/Bioinformatica/gotoh1982.pdf for more details.
 func smithWaterman(s1, s2 []rune) int {
 	const (
-		openGap = 5 // Gap opening penalty.
-		extGap  = 1 // Gap extension penalty.
+		openGap int32 = 5 // Gap opening penalty.
+		extGap  int32 = 1 // Gap extension penalty.
 
-		matchScore    = 5
-		mismatchScore = 1
+		matchScore    int32 = 5
+		mismatchScore int32 = 1
 
-		firstCharBonus = 3 // The first char of s1 is equal to s2's one.
+		firstCharBonus int32 = 3 // The first char of s1 is equal to s2's one.
 	)
 
 	// The scoring matrix.
-	m := make([][]int, len(s1)+1)
-	// A matrix that calculates gap penalties until each position (i, j).
-	P := make([][]int, len(s1)+1)
+	H := make([][]int32, len(s1)+1)
+	// A matrix that calculates gap penalties for s2 until each position (i, j).
+	// Note that, we don't need a matrix for s1 because s1 contains all runes
+	// of s2 so that s1 is not inserted gaps.
+	D := make([][]int32, len(s1)+1)
 	for i := 0; i <= len(s1); i++ {
-		m[i] = make([]int, len(s2)+1)
-		P[i] = make([]int, len(s2)+1)
+		H[i] = make([]int32, len(s2)+1)
+		D[i] = make([]int32, len(s2)+1)
 	}
 
 	for i := 0; i <= len(s1); i++ {
-		P[i][0] = -openGap - i*extGap
+		D[i][0] = -openGap - int32(i)*extGap
 	}
 
-	///
-
-	bonus := make([]int, len(s1))
+	// Calculate bonuses for each rune of s1.
+	bonus := make([]int32, len(s1))
 	bonus[0] = firstCharBonus
 	prevCh := s1[0]
 	prevIsDelimiter := isDelimiter(prevCh)
@@ -55,29 +56,26 @@ func smithWaterman(s1, s2 []rune) int {
 		prevIsDelimiter = isDelimiter
 	}
 
-	///
-
-	var maxScore int
+	var maxScore int32
 	for i := 1; i <= len(s1); i++ {
 		for j := 1; j <= len(s2); j++ {
-			p := P[i-1][j] + bonus[i-1]
-			var score int
+			var score int32
 			if s1[i-1] != s2[j-1] {
-				score = m[i-1][j-1] - mismatchScore
+				score = H[i-1][j-1] - mismatchScore
 			} else {
-				score = m[i-1][j-1] + matchScore + bonus[i-1]
+				score = H[i-1][j-1] + matchScore + bonus[i-1]
 			}
-			m[i][j] += max(p, score, 0)
+			H[i][j] += max(D[i-1][j], score, 0)
 
-			P[i][j] = max(m[i-1][j]-openGap, P[i-1][j]-extGap)
+			D[i][j] = max(H[i-1][j]-openGap, D[i-1][j]-extGap)
 
 			// Update the max score.
-			maxScore = max(m[i][j], maxScore)
+			maxScore = max(H[i][j], maxScore)
 		}
 	}
 
 	if isDebug() {
-		printSlice := func(m [][]int) {
+		printSlice := func(m [][]int32) {
 			fmt.Printf("%4c     ", '|')
 			for i := 0; i < len(s2); i++ {
 				fmt.Printf("%3c ", s2[i])
@@ -96,8 +94,8 @@ func smithWaterman(s1, s2 []rune) int {
 			}
 			println()
 		}
-		printSlice(m)
-		printSlice(P)
+		printSlice(H)
+		printSlice(D)
 	}
 
 	// We adjust scores by the weight per one rune.
