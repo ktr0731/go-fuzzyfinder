@@ -468,6 +468,7 @@ func (f *finder) find(items []string, matched []strmatch.Matched, opts []option)
 				}
 				return idxs, nil
 			}
+			panic(f.state.matched[f.state.y].Score)
 			return []int{f.state.matched[f.state.y].Idx}, nil
 		case err != nil:
 			return nil, errors.Wrap(err, "failed to read a key")

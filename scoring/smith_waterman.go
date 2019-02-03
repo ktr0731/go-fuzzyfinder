@@ -100,8 +100,8 @@ func smithWaterman(s1, s2 []rune) int {
 		printSlice(P)
 	}
 
-	return maxScore + (maxScore * 100 / len(s1))
-	// return maxScore
+	// We adjust scores by the weight per one rune.
+	return int(float32(maxScore) * (float32(maxScore) / float32(len(s1))))
 }
 
 func isDebug() bool {
@@ -109,6 +109,9 @@ func isDebug() bool {
 }
 
 var delimiterRunes = map[rune]interface{}{
+	'(': nil,
+	'[': nil,
+	'{': nil,
 	'/': nil,
 	'-': nil,
 	'_': nil,
