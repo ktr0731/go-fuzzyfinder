@@ -1,9 +1,9 @@
-package strmatch_test
+package matching
 
 import (
 	"testing"
 
-	"github.com/ktr0731/go-fuzzyfinder/strmatch"
+	"github.com/ktr0731/go-fuzzyfinder/matching"
 )
 
 func TestMatch(t *testing.T) {
@@ -25,11 +25,11 @@ func TestMatch(t *testing.T) {
 	for name, c := range cases {
 		c := c
 		t.Run(name, func(t *testing.T) {
-			var matched []strmatch.Matched
+			var matched []matching.Matched
 			if c.caseSensitive {
-				matched = strmatch.FindAll(c.in, slice, strmatch.WithCaseSensitive())
+				matched = matching.FindAll(c.in, slice, matching.WithCaseSensitive())
 			} else {
-				matched = strmatch.FindAll(c.in, slice)
+				matched = matching.FindAll(c.in, slice)
 			}
 			n := len(matched)
 			if c.expected == "" {
@@ -260,12 +260,12 @@ func BenchmarkMatch(b *testing.B) {
 	in := "cas hr "
 	b.Run("case insensitive", func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
-			strmatch.FindAll(in, benchSlice)
+			matching.FindAll(in, benchSlice)
 		}
 	})
 	b.Run("case sensitive", func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
-			strmatch.FindAll(in, benchSlice, strmatch.WithCaseSensitive())
+			matching.FindAll(in, benchSlice, matching.WithCaseSensitive())
 		}
 	})
 }

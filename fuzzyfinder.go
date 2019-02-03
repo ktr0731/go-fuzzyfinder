@@ -11,7 +11,7 @@ import (
 	"unicode"
 	"unicode/utf8"
 
-	"github.com/ktr0731/go-fuzzyfinder/strmatch"
+	"github.com/ktr0731/go-fuzzyfinder/matching"
 	runewidth "github.com/mattn/go-runewidth"
 	termbox "github.com/nsf/termbox-go"
 	"github.com/pkg/errors"
@@ -27,8 +27,8 @@ var defaultFinder = &finder{}
 
 type state struct {
 	items      []string           // All item names.
-	allMatched []strmatch.Matched // All items.
-	matched    []strmatch.Matched
+	allMatched []matching.Matched // All items.
+	matched    []matching.Matched
 
 	// x is the current index of the input line.
 	x int
@@ -58,7 +58,7 @@ type finder struct {
 	opt       *opt
 }
 
-func (f *finder) initFinder(items []string, matched []strmatch.Matched, opts []option) error {
+func (f *finder) initFinder(items []string, matched []matching.Matched, opts []option) error {
 	*f = finder{}
 	if err := term.init(); err != nil {
 		return errors.Wrap(err, "failed to initialize termbox")
@@ -396,7 +396,7 @@ func (f *finder) filter() {
 
 	// TODO: If input is not delete operation, it is able to
 	// reduce total iteration.
-	matchedItems := strmatch.FindAll(string(f.state.input), f.state.items, strmatch.WithCaseSensitive())
+	matchedItems := matching.FindAll(string(f.state.input), f.state.items, matching.WithCaseSensitive())
 	var prevSelectedItemIdx int
 	if len(f.state.matched) != 0 {
 		prevSelectedItemIdx = f.state.matched[f.state.y].Idx
@@ -437,7 +437,7 @@ func (f *finder) filter() {
 	}
 }
 
-func (f *finder) find(items []string, matched []strmatch.Matched, opts []option) ([]int, error) {
+func (f *finder) find(items []string, matched []matching.Matched, opts []option) ([]int, error) {
 	if err := f.initFinder(items, matched, opts); err != nil {
 		return nil, errors.Wrap(err, "failed to initialize the fuzzy finder")
 	}
@@ -516,10 +516,10 @@ func find(slice interface{}, itemFunc func(i int) string, opts []option) ([]int,
 
 	sliceLen := rv.Len()
 	items := make([]string, sliceLen)
-	matchedItems := make([]strmatch.Matched, sliceLen)
+	matchedItems := make([]matching.Matched, sliceLen)
 	for i := 0; i < sliceLen; i++ {
 		items[i] = itemFunc(i)
-		matchedItems[i] = strmatch.Matched{Idx: i}
+		matchedItems[i] = matching.Matched{Idx: i}
 	}
 
 	return defaultFinder.find(items, matchedItems, opts)
