@@ -18,6 +18,11 @@ import (
 // the calculation from O(M^2N) to O(MN).
 // Please see ftp://150.128.97.71/pub/Bioinformatica/gotoh1982.pdf for more details.
 func smithWaterman(s1, s2 []rune) int {
+	if len(s1) == 0 {
+		// If the length of s1 is 0, also the length of s2 is 0.
+		return 0
+	}
+
 	const (
 		openGap int32 = 5 // Gap opening penalty.
 		extGap  int32 = 1 // Gap extension penalty.

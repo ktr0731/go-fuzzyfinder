@@ -1,4 +1,4 @@
-package matching
+package matching_test
 
 import (
 	"testing"
@@ -27,7 +27,7 @@ func TestMatch(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			var matched []matching.Matched
 			if c.caseSensitive {
-				matched = matching.FindAll(c.in, slice, matching.WithCaseSensitive())
+				matched = matching.FindAll(c.in, slice, matching.WithMode(matching.ModeCaseSensitive))
 			} else {
 				matched = matching.FindAll(c.in, slice)
 			}
@@ -265,7 +265,7 @@ func BenchmarkMatch(b *testing.B) {
 	})
 	b.Run("case sensitive", func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
-			matching.FindAll(in, benchSlice, matching.WithCaseSensitive())
+			matching.FindAll(in, benchSlice, matching.WithMode(matching.ModeCaseSensitive))
 		}
 	})
 }
