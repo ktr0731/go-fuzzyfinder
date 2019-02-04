@@ -4,7 +4,6 @@ import (
 	"flag"
 	"fmt"
 	"reflect"
-	"sort"
 	"strings"
 	"sync"
 	"time"
@@ -401,9 +400,6 @@ func (f *finder) filter() {
 	if len(f.state.matched) != 0 {
 		prevSelectedItemIdx = f.state.matched[f.state.y].Idx
 	}
-	sort.Slice(matchedItems, func(i, j int) bool {
-		return matchedItems[i].Score > matchedItems[j].Score
-	})
 	f.state.matched = matchedItems
 	if len(f.state.matched) == 0 {
 		f.state.cursorY = 0

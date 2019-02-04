@@ -1,6 +1,7 @@
 package matching
 
 import (
+	"sort"
 	"strings"
 	"unicode"
 
@@ -15,9 +16,9 @@ type Matched struct {
 	// Pos is the range of matched position.
 	// [2]int represents a closed interval of a position.
 	Pos [2]int
-	// Score is the value that indicates how it similar to the input string.
-	// The bigger Score, the more similar it is.
-	Score int
+	// score is the value that indicates how it similar to the input string.
+	// The bigger score, the more similar it is.
+	score int
 }
 
 type opt optFunc
@@ -44,12 +45,17 @@ func WithMode(m Mode) opt {
 }
 
 // FindAll tries to find out sub-strings from slice that match the passed argument in.
+// The returned slice is sorted by similarity scores in descending order.
 func FindAll(in string, slice []string, opts ...opt) []Matched {
 	var opt option
 	for _, o := range opts {
 		o(&opt)
 	}
-	return match(in, slice, opt)
+	m := match(in, slice, opt)
+	sort.Slice(m, func(i, j int) bool {
+		return m[i].score > m[j].score
+	})
+	return m
 }
 
 // match iterates each string of slice for check whether it is matched to the input string.
@@ -83,7 +89,7 @@ func match(input string, slice []string, opt option) (res []Matched) {
 						Idx: idxOfSlice,
 						Pos: [2]int{from, i + 1},
 						// TODO: 引数と順番をあわせる
-						Score: scoring.Calculate(s, input),
+						score: scoring.Calculate(s, input),
 					})
 					break LINE_MATCHING
 				}
