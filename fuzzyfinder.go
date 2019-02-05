@@ -1,3 +1,5 @@
+// Package fuzzyfinder provides terminal user interfaces for fuzzy-finding.
+// Note that, all functions are not goroutine-safe.
 package fuzzyfinder
 
 import (
@@ -23,7 +25,10 @@ var (
 	errEntered = errors.New("entered")
 )
 
-var defaultFinder = &finder{}
+var (
+	defaultFinderMu sync.Mutex
+	defaultFinder   = &finder{}
+)
 
 type state struct {
 	items      []string           // All item names.
@@ -511,5 +516,7 @@ func find(slice interface{}, itemFunc func(i int) string, opts []option) ([]int,
 		matchedItems[i] = matching.Matched{Idx: i}
 	}
 
+	defaultFinderMu.Lock()
+	defer defaultFinderMu.Unlock()
 	return defaultFinder.find(items, matchedItems, opts)
 }

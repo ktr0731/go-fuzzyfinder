@@ -1,21 +1,14 @@
 package fuzzyfinder
 
 import (
-	"sync"
-
 	termbox "github.com/nsf/termbox-go"
 )
 
-var (
-	termMu sync.Mutex
-	term   terminal = &termImpl{}
-)
+var term terminal = &termImpl{}
 
 // UseRealTerminal switches the terminal which is used from
 // this package to a real one.
 func UseRealTerminal() {
-	termMu.Lock()
-	defer termMu.Unlock()
 	term = &termImpl{}
 }
 

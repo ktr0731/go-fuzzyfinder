@@ -172,10 +172,7 @@ func (m *TerminalMock) close() {}
 // UseMockedTerminal switches the terminal which is used from
 // this package to a mocked one.
 func UseMockedTerminal() *TerminalMock {
-	termMu.Lock()
-	defer termMu.Unlock()
 	m := &TerminalMock{}
-
 	term = m
 	return m
 }
