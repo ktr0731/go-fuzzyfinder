@@ -4,6 +4,7 @@ import (
 	"flag"
 	"fmt"
 	"reflect"
+	"sort"
 	"strings"
 	"sync"
 	"time"
@@ -45,9 +46,11 @@ type state struct {
 	input []rune
 
 	// selections holds whether a key is selected or not. Each key is
-	// an index of a item (Matched.Idx). Each value represents the item is
-	// selected if true.
-	selection map[int]bool
+	// an index of a item (Matched.Idx). Each value represents the position
+	// which it is selected.
+	selection map[int]int
+	// selectionIdx hods the next index, which is used to a selection's value.
+	selectionIdx int
 }
 
 type finder struct {
@@ -70,7 +73,7 @@ func (f *finder) initFinder(items []string, matched []matching.Matched, opts []o
 	f.opt = &opt
 
 	if opt.multi {
-		f.state.selection = map[int]bool{}
+		f.state.selection = map[int]int{}
 	}
 
 	f.state.items = items
@@ -129,7 +132,7 @@ func (f *finder) _draw() {
 		}
 
 		if f.opt.multi {
-			if f.state.selection[m.Idx] {
+			if _, ok := f.state.selection[m.Idx]; ok {
 				term.setCell(1, height-3-i, '>', termbox.ColorRed, termbox.ColorBlack)
 			}
 		}
@@ -354,10 +357,11 @@ func (f *finder) readKey() error {
 				return nil
 			}
 			idx := f.state.matched[f.state.y].Idx
-			if s, ok := f.state.selection[idx]; ok {
-				f.state.selection[idx] = !s
+			if _, ok := f.state.selection[idx]; ok {
+				delete(f.state.selection, idx)
 			} else {
-				f.state.selection[idx] = true
+				f.state.selection[idx] = f.state.selectionIdx
+				f.state.selectionIdx++
 			}
 			if f.state.y > 0 {
 				f.state.y--
@@ -396,10 +400,6 @@ func (f *finder) filter() {
 	// TODO: If input is not delete operation, it is able to
 	// reduce total iteration.
 	matchedItems := matching.FindAll(string(f.state.input), f.state.items, matching.WithMode(matching.Mode(f.opt.mode)))
-	var prevSelectedItemIdx int
-	if len(f.state.matched) != 0 {
-		prevSelectedItemIdx = f.state.matched[f.state.y].Idx
-	}
 	f.state.matched = matchedItems
 	if len(f.state.matched) == 0 {
 		f.state.cursorY = 0
@@ -413,23 +413,6 @@ func (f *finder) filter() {
 		f.state.y = len(f.state.matched) - 1
 	case f.state.y >= len(f.state.matched):
 		f.state.y = len(f.state.matched) - 1
-	// Update the current index and cursor to the selected track.
-	default:
-		_, height := term.size()
-		itemAreaHeight := height - 2 - 1
-		for i, m := range f.state.matched {
-			if m.Idx == prevSelectedItemIdx {
-				f.state.y = i
-				if i > itemAreaHeight {
-					f.state.cursorY = itemAreaHeight
-				} else if i < 0 {
-					f.state.cursorY = 0
-				} else {
-					f.state.cursorY = i
-				}
-				break
-			}
-		}
 	}
 }
 
@@ -456,12 +439,14 @@ func (f *finder) find(items []string, matched []matching.Matched, opts []option)
 				if len(f.state.selection) == 0 {
 					return []int{f.state.matched[f.state.y].Idx}, nil
 				}
-				idxs := make([]int, 0, len(f.state.selection))
-				for idx, selected := range f.state.selection {
-					if selected {
-						idxs = append(idxs, idx)
-					}
+				poss, idxs := make([]int, 0, len(f.state.selection)), make([]int, 0, len(f.state.selection))
+				for idx, pos := range f.state.selection {
+					idxs = append(idxs, idx)
+					poss = append(poss, pos)
 				}
+				sort.Slice(idxs, func(i, j int) bool {
+					return poss[i] < poss[j]
+				})
 				return idxs, nil
 			}
 			return []int{f.state.matched[f.state.y].Idx}, nil
