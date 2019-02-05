@@ -68,6 +68,12 @@ var (
 	numEvents = flag.Int("numEvents", 100, "number of events")
 )
 
+// TestFuzz executes fuzzing tests.
+//
+// Example:
+//
+//   go test -tags fuzz -run TestFuzz -numCases 1000 -numEvents 100
+//
 func TestFuzz(t *testing.T) {
 	f, err := os.Create(*out)
 	if err != nil {

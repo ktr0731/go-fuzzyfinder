@@ -9,9 +9,10 @@ import (
 
 func Test_parseAttr(t *testing.T) {
 	cases := map[string]struct {
-		attr     termbox.Attribute
-		isFg     bool
-		expected string
+		attr      termbox.Attribute
+		isFg      bool
+		expected  string
+		willPanic bool
 	}{
 		"ColorDefault": {
 			attr:     termbox.ColorDefault,
@@ -34,11 +35,26 @@ func Test_parseAttr(t *testing.T) {
 			attr:     termbox.ColorGreen | termbox.AttrBold | termbox.AttrUnderline,
 			expected: "\x1b[4;1;48;5;2m",
 		},
+		"ColorGreen with reverse": {
+			attr:     termbox.ColorGreen | termbox.AttrReverse,
+			expected: "\x1b[7;48;5;2m",
+		},
+		"invalid color": {
+			attr:      termbox.ColorWhite + 1,
+			willPanic: true,
+		},
 	}
 
 	for name, c := range cases {
 		c := c
 		t.Run(name, func(t *testing.T) {
+			if c.willPanic {
+				defer func() {
+					if err := recover(); err == nil {
+						t.Errorf("must panic")
+					}
+				}()
+			}
 			actual := parseAttr(c.attr, c.isFg)
 			if diff := cmp.Diff(c.expected, actual); diff != "" {
 				t.Errorf("diff found: \n%s\nexpected = %x, actual = %x", diff, c.expected, actual)
