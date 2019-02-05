@@ -1,3 +1,5 @@
+// Package matching provides matching features that find appropriate strings
+// by using a passed input string.
 package matching
 
 import (
@@ -21,8 +23,7 @@ type Matched struct {
 	score int
 }
 
-type opt optFunc
-type optFunc func(*option)
+type option func(*opt)
 
 type Mode int
 
@@ -32,22 +33,22 @@ const (
 	ModeCaseInsensitive
 )
 
-// option represents available options and its default values.
-type option struct {
+// opt represents available options and its default values.
+type opt struct {
 	mode Mode
 }
 
-// WithMode specifies a matching mode.
-func WithMode(m Mode) opt {
-	return func(o *option) {
+// WithMode specifies a matching mode. The default mode is ModeSmart.
+func WithMode(m Mode) option {
+	return func(o *opt) {
 		o.mode = m
 	}
 }
 
 // FindAll tries to find out sub-strings from slice that match the passed argument in.
 // The returned slice is sorted by similarity scores in descending order.
-func FindAll(in string, slice []string, opts ...opt) []Matched {
-	var opt option
+func FindAll(in string, slice []string, opts ...option) []Matched {
+	var opt opt
 	for _, o := range opts {
 		o(&opt)
 	}
@@ -59,7 +60,7 @@ func FindAll(in string, slice []string, opts ...opt) []Matched {
 }
 
 // match iterates each string of slice for check whether it is matched to the input string.
-func match(input string, slice []string, opt option) (res []Matched) {
+func match(input string, slice []string, opt opt) (res []Matched) {
 	if opt.mode == ModeSmart {
 		// Find an upper-case rune
 		n := strings.IndexFunc(input, unicode.IsUpper)

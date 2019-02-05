@@ -14,7 +14,8 @@ type cell struct {
 	bg, fg termbox.Attribute
 }
 
-// TerminalMock is a mock terminal for testing.
+// TerminalMock is a mocked terminal for testing.
+// Most users should use it by calling UseMockedTerminal.
 type TerminalMock struct {
 	sizeMu        sync.Mutex
 	width, height int
@@ -41,7 +42,7 @@ func (m *TerminalMock) SetSize(w, h int) {
 	m.cells = make([]*cell, w*h)
 }
 
-// SetEvents sets all events which are fetched by pollEvent.
+// SetEvents sets all events, which are fetched by pollEvent.
 // A user of this must set the EscKey event at the end.
 func (m *TerminalMock) SetEvents(e ...termbox.Event) {
 	m.eventsMu.Lock()
@@ -49,6 +50,8 @@ func (m *TerminalMock) SetEvents(e ...termbox.Event) {
 	m.events = e
 }
 
+// GetResult returns a flushed string that is displayed to the actual terminal.
+// It contains all escape sequences such that ANSI escape code.
 func (m *TerminalMock) GetResult() string {
 	m.resultMu.Lock()
 	defer m.resultMu.Unlock()
@@ -169,7 +172,7 @@ func (m *TerminalMock) flush() error {
 
 func (m *TerminalMock) close() {}
 
-// UseMockedTerminal switches the terminal which is used from
+// UseMockedTerminal switches the terminal, which is used from
 // this package to a mocked one.
 func UseMockedTerminal() *TerminalMock {
 	m := &TerminalMock{}

@@ -19,10 +19,11 @@ const (
 	ModeCaseInsensitive
 )
 
-type option func(*opt)
+// Option represents available fuzzy-finding options.
+type Option func(*opt)
 
-// WithMode specifies a matching mode.
-func WithMode(m mode) option {
+// WithMode specifies a matching mode. The default mode is ModeSmart.
+func WithMode(m mode) Option {
 	return func(o *opt) {
 		o.mode = m
 	}
@@ -33,14 +34,16 @@ func WithMode(m mode) option {
 // width and height are the size of the terminal. You can use these to adjust
 // a preview content. If there is no selected item, previewFunc passes -1 to
 // previewFunc.
-func WithPreviewWindow(f func(i, width, height int) string) option {
+//
+// If f is nil, the preview feature is disabled.
+func WithPreviewWindow(f func(i, width, height int) string) Option {
 	return func(o *opt) {
 		o.previewFunc = f
 	}
 }
 
 // withMulti enables to select multiple items by tab key.
-func withMulti() option {
+func withMulti() Option {
 	return func(o *opt) {
 		o.multi = true
 	}

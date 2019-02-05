@@ -2,6 +2,7 @@ package fuzzyfinder_test
 
 import (
 	"flag"
+	"fmt"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -162,6 +163,71 @@ func TestFind(t *testing.T) {
 			})
 		})
 	}
+}
+
+func ExampleFind() {
+	slice := []struct {
+		id   string
+		name string
+	}{
+		{"id1", "foo"},
+		{"id2", "bar"},
+		{"id3", "baz"},
+	}
+	idx, _ := fuzzyfinder.Find(slice, func(i int) string {
+		return fmt.Sprintf("[%s] %s", slice[i].id, slice[i].name)
+	})
+	fmt.Println(slice[idx]) // The selected item.
+}
+
+func ExampleFind_previewWindow() {
+	slice := []struct {
+		id   string
+		name string
+	}{
+		{"id1", "foo"},
+		{"id2", "bar"},
+		{"id3", "baz"},
+	}
+	fuzzyfinder.Find(
+		slice,
+		func(i int) string {
+			return fmt.Sprintf("[%s] %s", slice[i].id, slice[i].name)
+		},
+		fuzzyfinder.WithPreviewWindow(func(i, width, _ int) string {
+			if i == -1 {
+				return "no results"
+			}
+			s := fmt.Sprintf("%s is selected", slice[i].name)
+			// As an example of using width, if the window width is less than
+			// the length of s, we returns the name directly.
+			if width < len([]rune(s)) {
+				return slice[i].name
+			}
+			return s
+		}))
+}
+
+func ExampleFindMulti() {
+	slice := []struct {
+		id   string
+		name string
+	}{
+		{"id1", "foo"},
+		{"id2", "bar"},
+		{"id3", "baz"},
+	}
+	idxs, _ := fuzzyfinder.FindMulti(slice, func(i int) string {
+		return fmt.Sprintf("[%s] %s", slice[i].id, slice[i].name)
+	})
+	for _, idx := range idxs {
+		fmt.Println(slice[idx])
+	}
+}
+
+func ExampleFindWithPreview() {
+
+	// Output:
 }
 
 func runes(s string) []termbox.Event {

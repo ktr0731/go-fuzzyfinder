@@ -1,4 +1,5 @@
 // Package fuzzyfinder provides terminal user interfaces for fuzzy-finding.
+//
 // Note that, all functions are not goroutine-safe.
 package fuzzyfinder
 
@@ -65,7 +66,7 @@ type finder struct {
 	opt       *opt
 }
 
-func (f *finder) initFinder(items []string, matched []matching.Matched, opts []option) error {
+func (f *finder) initFinder(items []string, matched []matching.Matched, opts []Option) error {
 	*f = finder{}
 	if err := term.init(); err != nil {
 		return errors.Wrap(err, "failed to initialize termbox")
@@ -429,7 +430,7 @@ func (f *finder) filter() {
 	}
 }
 
-func (f *finder) find(items []string, matched []matching.Matched, opts []option) ([]int, error) {
+func (f *finder) find(items []string, matched []matching.Matched, opts []Option) ([]int, error) {
 	if err := f.initFinder(items, matched, opts); err != nil {
 		return nil, errors.Wrap(err, "failed to initialize the fuzzy finder")
 	}
@@ -478,14 +479,13 @@ func isInTesting() bool {
 // The argument slice must be a slice type. If it is not a slice, Find returns
 // an error. itemFunc is called by the length of slice. previewFunc is called
 // when the cursor which points the current selected item is changed.
-// If itemFunc is nil, Find returns a error. If previewFunc is nil, preview
-// feature is disabled.
+// If itemFunc is nil, Find returns a error.
 //
 // itemFunc receives an argument i. It is the index of the item currently
 // selected.
 //
 // Find returns ErrAbort if a call of Find is finished with no selection.
-func Find(slice interface{}, itemFunc func(i int) string, opts ...option) (int, error) {
+func Find(slice interface{}, itemFunc func(i int) string, opts ...Option) (int, error) {
 	res, err := find(slice, itemFunc, opts)
 	if err != nil {
 		return 0, err
@@ -495,11 +495,11 @@ func Find(slice interface{}, itemFunc func(i int) string, opts ...option) (int, 
 
 // FindMulti is nearly same as the Find. The only one difference point from
 // Find is the user can select multiple items at once by tab key.
-func FindMulti(slice interface{}, itemFunc func(i int) string, opts ...option) ([]int, error) {
+func FindMulti(slice interface{}, itemFunc func(i int) string, opts ...Option) ([]int, error) {
 	return find(slice, itemFunc, append(opts, withMulti()))
 }
 
-func find(slice interface{}, itemFunc func(i int) string, opts []option) ([]int, error) {
+func find(slice interface{}, itemFunc func(i int) string, opts []Option) ([]int, error) {
 	rv := reflect.ValueOf(slice)
 	if rv.Kind() != reflect.Slice {
 		return nil, errors.Errorf("the first argument must be a slice, but got %T", slice)
