@@ -381,7 +381,15 @@ func (f *finder) readKey() error {
 			}
 		}
 	case termbox.EventResize:
-		// TODO: change cursorY, drawable tracks
+		// To get actual window size, clear all buffers.
+		// See termbox.Clear's documentation for more details.
+		term.clear(termbox.ColorDefault, termbox.ColorDefault)
+
+		_, height := term.size()
+		itemAreaHeight := height - 2 - 1
+		if itemAreaHeight >= 0 && f.state.cursorY > itemAreaHeight {
+			f.state.cursorY = itemAreaHeight
+		}
 
 		f.draw(200 * time.Millisecond)
 	}
