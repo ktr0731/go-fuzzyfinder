@@ -1,0 +1,38 @@
+version: 2
+jobs:
+  build:
+    working_directory: /go/go-fuzzy-finder
+    docker:
+      - image: circleci/golang:1.11.2
+        environment:
+          GO111MODULE: "on"
+          GOPATH: /go
+
+    steps:
+      - checkout
+
+      - restore_cache:
+          keys:
+            - mod-{{ checksum "go.sum" }}
+
+      - run:
+          name: setup
+          command: |
+            go mod download
+
+      - save_cache:
+          key: mod-{{ checksum "go.sum" }}
+          paths:
+            - /go/pkg/mod
+
+      - run:
+          name: build
+          command: go build
+
+      - run:
+          name: test
+          command: go test -v -coverpkg ./... -covermode=atomic -coverprofile=coverage.txt ./...
+
+      - run:
+          name: codecov
+          command: bash <(curl -s https://codecov.io/bash)
