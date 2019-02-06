@@ -149,9 +149,9 @@ func (f *finder) _draw() {
 			fg := termbox.ColorDefault
 			bg := termbox.ColorDefault
 			// Highlight selected strings.
-			if len(m.Pos) != 0 {
+			if len(f.state.input) != 0 && posIdx < len(f.state.input) {
 				from, to := m.Pos[0], m.Pos[1]
-				if !(from == 0 && to == 0) && (j >= from && j < to) {
+				if !(from == -1 && to == -1) && (from <= j && j <= to) {
 					if unicode.ToLower(f.state.input[posIdx]) == unicode.ToLower(r) {
 						fg |= termbox.ColorGreen
 						posIdx++
@@ -380,6 +380,13 @@ func (f *finder) readKey() error {
 				e.Ch = ' '
 			}
 			if e.Ch != 0 {
+				width, _ := term.size()
+				maxLineWidth := width - 2 - 1
+				if len(f.state.input)+1 > maxLineWidth {
+					// Discard inputted rune.
+					return nil
+				}
+
 				x := f.state.x
 				f.state.input = append(f.state.input[:x], append([]rune{e.Ch}, f.state.input[x:]...)...)
 				f.state.cursorX += runewidth.RuneWidth(e.Ch)
@@ -391,10 +398,22 @@ func (f *finder) readKey() error {
 		// See termbox.Clear's documentation for more details.
 		term.clear(termbox.ColorDefault, termbox.ColorDefault)
 
-		_, height := term.size()
+		width, height := term.size()
 		itemAreaHeight := height - 2 - 1
 		if itemAreaHeight >= 0 && f.state.cursorY > itemAreaHeight {
 			f.state.cursorY = itemAreaHeight
+		}
+
+		maxLineWidth := width - 2 - 1
+		if maxLineWidth < 0 {
+			f.state.input = nil
+			f.state.cursorX = 0
+			f.state.x = 0
+		} else if len(f.state.input)+1 > maxLineWidth {
+			// Discard inputted rune.
+			f.state.input = f.state.input[:maxLineWidth]
+			f.state.cursorX = runewidth.StringWidth(string(f.state.input))
+			f.state.x = maxLineWidth
 		}
 
 		f.draw(200 * time.Millisecond)
@@ -463,6 +482,7 @@ func (f *finder) find(items []string, matched []matching.Matched, opts []Option)
 				})
 				return idxs, nil
 			}
+			panic(fmt.Sprint(f.state.matched[f.state.y].Pos))
 			return []int{f.state.matched[f.state.y].Idx}, nil
 		case err != nil:
 			return nil, errors.Wrap(err, "failed to read a key")

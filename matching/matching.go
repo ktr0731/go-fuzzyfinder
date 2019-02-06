@@ -74,23 +74,26 @@ func match(input string, slice []string, opt opt) (res []Matched) {
 
 	in := []rune(input)
 	for idxOfSlice, s := range slice {
-		var from, idx int
+		// var from, idx int
+		var idx int
 		if opt.mode == ModeCaseInsensitive {
 			s = strings.ToLower(s)
 		}
 	LINE_MATCHING:
-		for i, r := range []rune(s) {
+		for _, r := range []rune(s) {
 			if r == in[idx] {
-				if idx == 0 {
-					from = i
-				}
+				// if idx == 0 {
+				// 	from = i
+				// }
 				idx++
 				if idx == len(in) {
+					score, pos := scoring.Calculate(s, input)
 					res = append(res, Matched{
 						Idx: idxOfSlice,
-						Pos: [2]int{from, i + 1},
+						// Pos: [2]int{from, i + 1},
+						Pos: pos,
 						// TODO: 引数と順番をあわせる
-						score: scoring.Calculate(s, input),
+						score: score,
 					})
 					break LINE_MATCHING
 				}

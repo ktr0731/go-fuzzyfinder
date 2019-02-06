@@ -12,13 +12,14 @@ func Test_smithWaterman(t *testing.T) {
 	}{
 		{"TACGGGCCCGCTA", "TAGCCCTA", 78},
 		{"TACGGG-CCCGCTA", "TAGCCCTA", 56},
+		{"konoha no sekai jijou", "ak", 56},
 	}
 
 	for _, c := range cases {
 		c := c
 		name := fmt.Sprintf("%s-%s", c.s1, c.s2)
 		t.Run(name, func(t *testing.T) {
-			score := smithWaterman([]rune(c.s1), []rune(c.s2))
+			score, _ := smithWaterman([]rune(c.s1), []rune(c.s2))
 			if score != c.expected {
 				t.Errorf("expected 78, but got %d", score)
 			}
