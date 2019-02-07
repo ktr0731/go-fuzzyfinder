@@ -27,8 +27,7 @@ var (
 )
 
 var (
-	defaultFinderMu sync.Mutex
-	defaultFinder   = &finder{}
+	defaultFinder = &finder{}
 )
 
 type state struct {
@@ -60,6 +59,7 @@ type state struct {
 }
 
 type finder struct {
+	term      terminal
 	stateMu   sync.Mutex
 	state     state
 	drawTimer *time.Timer
@@ -67,8 +67,11 @@ type finder struct {
 }
 
 func (f *finder) initFinder(items []string, matched []matching.Matched, opts []Option) error {
-	*f = finder{}
-	if err := term.init(); err != nil {
+	if f.term == nil {
+		f.term = &termImpl{}
+	}
+
+	if err := f.term.init(); err != nil {
 		return errors.Wrap(err, "failed to initialize termbox")
 	}
 
@@ -88,7 +91,7 @@ func (f *finder) initFinder(items []string, matched []matching.Matched, opts []O
 	f.drawTimer = time.AfterFunc(0, func() {
 		f._draw()
 		f._drawPreview()
-		term.flush()
+		f.term.flush()
 	})
 	f.drawTimer.Stop()
 	return nil
@@ -96,8 +99,8 @@ func (f *finder) initFinder(items []string, matched []matching.Matched, opts []O
 
 // _draw is used from draw with a timer.
 func (f *finder) _draw() {
-	width, height := term.size()
-	term.clear(termbox.ColorDefault, termbox.ColorDefault)
+	width, height := f.term.size()
+	f.term.clear(termbox.ColorDefault, termbox.ColorDefault)
 
 	maxWidth := width
 	if f.opt.previewFunc != nil {
@@ -105,19 +108,19 @@ func (f *finder) _draw() {
 	}
 
 	// input line
-	term.setCell(0, height-1, '>', termbox.ColorBlue, termbox.ColorDefault)
+	f.term.setCell(0, height-1, '>', termbox.ColorBlue, termbox.ColorDefault)
 	var r rune
 	var w int
 	for _, r = range f.state.input {
 		// Add a space between '>' and runes.
-		term.setCell(2+w, height-1, r, termbox.ColorDefault|termbox.AttrBold, termbox.ColorDefault)
+		f.term.setCell(2+w, height-1, r, termbox.ColorDefault|termbox.AttrBold, termbox.ColorDefault)
 		w += runewidth.RuneWidth(r)
 	}
-	term.setCursor(2+f.state.cursorX, height-1)
+	f.term.setCursor(2+f.state.cursorX, height-1)
 
 	// Number line
 	for i, r := range fmt.Sprintf("%d/%d", len(f.state.matched), len(f.state.items)) {
-		term.setCell(2+i, height-2, r, termbox.ColorYellow, termbox.ColorDefault)
+		f.term.setCell(2+i, height-2, r, termbox.ColorYellow, termbox.ColorDefault)
 	}
 
 	// Item lines
@@ -133,13 +136,13 @@ func (f *finder) _draw() {
 			break
 		}
 		if i == f.state.cursorY {
-			term.setCell(0, height-3-i, '>', termbox.ColorRed, termbox.ColorBlack)
-			term.setCell(1, height-3-i, ' ', termbox.ColorRed, termbox.ColorBlack)
+			f.term.setCell(0, height-3-i, '>', termbox.ColorRed, termbox.ColorBlack)
+			f.term.setCell(1, height-3-i, ' ', termbox.ColorRed, termbox.ColorBlack)
 		}
 
 		if f.opt.multi {
 			if _, ok := f.state.selection[m.Idx]; ok {
-				term.setCell(1, height-3-i, '>', termbox.ColorRed, termbox.ColorBlack)
+				f.term.setCell(1, height-3-i, '>', termbox.ColorRed, termbox.ColorBlack)
 			}
 		}
 
@@ -166,12 +169,12 @@ func (f *finder) _draw() {
 			rw := runewidth.RuneWidth(r)
 			// Shorten item cells.
 			if w+rw+2 > maxWidth {
-				term.setCell(w, height-3-i, '.', fg, bg)
-				term.setCell(w+1, height-3-i, '.', fg, bg)
+				f.term.setCell(w, height-3-i, '.', fg, bg)
+				f.term.setCell(w+1, height-3-i, '.', fg, bg)
 				w += 2
 				break
 			} else {
-				term.setCell(w, height-3-i, r, fg, bg)
+				f.term.setCell(w, height-3-i, r, fg, bg)
 				w += rw
 			}
 		}
@@ -183,7 +186,7 @@ func (f *finder) _drawPreview() {
 		return
 	}
 
-	width, height := term.size()
+	width, height := f.term.size()
 	var idx int
 	if len(f.state.matched) == 0 {
 		idx = -1
@@ -207,7 +210,7 @@ func (f *finder) _drawPreview() {
 		} else {
 			r = '─'
 		}
-		term.setCell(i, 0, r, termbox.ColorBlack, termbox.ColorDefault)
+		f.term.setCell(i, 0, r, termbox.ColorBlack, termbox.ColorDefault)
 	}
 	// bottom line
 	for i := width / 2; i < width; i++ {
@@ -219,7 +222,7 @@ func (f *finder) _drawPreview() {
 		} else {
 			r = '─'
 		}
-		term.setCell(i, height-1, r, termbox.ColorBlack, termbox.ColorDefault)
+		f.term.setCell(i, height-1, r, termbox.ColorBlack, termbox.ColorDefault)
 	}
 	// Start with h=1 to exclude each corner rune.
 	const vline = '│'
@@ -230,15 +233,15 @@ func (f *finder) _drawPreview() {
 			switch {
 			// Left vertical line.
 			case i == width/2:
-				term.setCell(i, h, vline, termbox.ColorBlack, termbox.ColorDefault)
+				f.term.setCell(i, h, vline, termbox.ColorBlack, termbox.ColorDefault)
 				w += wvline
 			// Right vertical line.
 			case i == width-1:
-				term.setCell(i, h, vline, termbox.ColorBlack, termbox.ColorDefault)
+				f.term.setCell(i, h, vline, termbox.ColorBlack, termbox.ColorDefault)
 				w += wvline
 			// Spaces between left and right vertical lines.
 			case w == width/2+wvline, w == width-1-wvline:
-				term.setCell(w, h, ' ', termbox.ColorDefault, termbox.ColorDefault)
+				f.term.setCell(w, h, ' ', termbox.ColorDefault, termbox.ColorDefault)
 				w++
 			default: // Preview text
 				if h-1 >= len(prevLines) {
@@ -253,13 +256,13 @@ func (f *finder) _drawPreview() {
 				}
 				rw := runewidth.RuneWidth(l[j])
 				if w+rw > width-1-2 {
-					term.setCell(w, h, '.', termbox.ColorDefault, termbox.ColorDefault)
-					term.setCell(w+1, h, '.', termbox.ColorDefault, termbox.ColorDefault)
+					f.term.setCell(w, h, '.', termbox.ColorDefault, termbox.ColorDefault)
+					f.term.setCell(w+1, h, '.', termbox.ColorDefault, termbox.ColorDefault)
 					w += 2
 					continue
 				}
 
-				term.setCell(w, h, l[j], termbox.ColorDefault, termbox.ColorDefault)
+				f.term.setCell(w, h, l[j], termbox.ColorDefault, termbox.ColorDefault)
 				w += rw
 			}
 		}
@@ -274,14 +277,14 @@ func (f *finder) draw(d time.Duration) {
 		// Don't use goroutine scheduling.
 		f._draw()
 		f._drawPreview()
-		term.flush()
+		f.term.flush()
 	} else {
 		f.drawTimer.Reset(d)
 	}
 }
 
 func (f *finder) readKey() error {
-	switch e := term.pollEvent(); e.Type {
+	switch e := f.term.pollEvent(); e.Type {
 	case termbox.EventKey:
 		switch e.Key {
 		case termbox.KeyEsc, termbox.KeyCtrlC, termbox.KeyCtrlD:
@@ -347,7 +350,7 @@ func (f *finder) readKey() error {
 			if f.state.y+1 < len(f.state.matched) {
 				f.state.y++
 			}
-			_, height := term.size()
+			_, height := f.term.size()
 			if f.state.cursorY+1 < height-2 && f.state.cursorY+1 < len(f.state.matched) {
 				f.state.cursorY++
 			}
@@ -380,7 +383,7 @@ func (f *finder) readKey() error {
 				e.Ch = ' '
 			}
 			if e.Ch != 0 {
-				width, _ := term.size()
+				width, _ := f.term.size()
 				maxLineWidth := width - 2 - 1
 				if len(f.state.input)+1 > maxLineWidth {
 					// Discard inputted rune.
@@ -396,9 +399,9 @@ func (f *finder) readKey() error {
 	case termbox.EventResize:
 		// To get actual window size, clear all buffers.
 		// See termbox.Clear's documentation for more details.
-		term.clear(termbox.ColorDefault, termbox.ColorDefault)
+		f.term.clear(termbox.ColorDefault, termbox.ColorDefault)
 
-		width, height := term.size()
+		width, height := f.term.size()
 		itemAreaHeight := height - 2 - 1
 		if itemAreaHeight >= 0 && f.state.cursorY > itemAreaHeight {
 			f.state.cursorY = itemAreaHeight
@@ -453,7 +456,7 @@ func (f *finder) find(items []string, matched []matching.Matched, opts []Option)
 	if err := f.initFinder(items, matched, opts); err != nil {
 		return nil, errors.Wrap(err, "failed to initialize the fuzzy finder")
 	}
-	defer term.close()
+	defer f.term.close()
 
 	for {
 		f.draw(10 * time.Millisecond)
@@ -488,10 +491,6 @@ func (f *finder) find(items []string, matched []matching.Matched, opts []Option)
 		}
 		f.filter()
 	}
-}
-
-func isInTesting() bool {
-	return flag.Lookup("test.v") != nil
 }
 
 // Find displays a UI that provides fuzzy finding against to the passed slice.
@@ -541,7 +540,9 @@ func (f *finder) FindMulti(slice interface{}, itemFunc func(i int) string, opts 
 		matchedItems[i] = matching.Matched{Idx: i}
 	}
 
-	defaultFinderMu.Lock()
-	defer defaultFinderMu.Unlock()
-	return defaultFinder.find(items, matchedItems, opts)
+	return f.find(items, matchedItems, opts)
+}
+
+func isInTesting() bool {
+	return flag.Lookup("test.v") != nil
 }

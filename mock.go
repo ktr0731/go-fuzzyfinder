@@ -175,8 +175,12 @@ func (m *TerminalMock) close() {}
 // UseMockedTerminal switches the terminal, which is used from
 // this package to a mocked one.
 func UseMockedTerminal() *TerminalMock {
+	return defaultFinder.UseMockedTerminal()
+}
+
+func (f *finder) UseMockedTerminal() *TerminalMock {
 	m := &TerminalMock{}
-	term = m
+	f.term = m
 	return m
 }
 

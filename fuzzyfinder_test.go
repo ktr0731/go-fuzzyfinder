@@ -71,13 +71,6 @@ type track struct {
 	Album  string
 }
 
-func newMockedTerminal() *fuzzyfinder.TerminalMock {
-	mock := fuzzyfinder.UseMockedTerminal()
-	w, h := 60, 10 // A normally value.
-	mock.SetSize(w, h)
-	return mock
-}
-
 var tracks = []*track{
 	{"あの日自分が出て行ってやっつけた時のことをまだ覚えている人の為に", "", ""},
 	{"ヒトリノ夜", "ポルノグラフィティ", "ロマンチスト・エゴイスト"},
@@ -140,12 +133,11 @@ func TestFind(t *testing.T) {
 			c := c
 			events := c.events
 
-			term := newMockedTerminal()
+			f, term := fuzzyfinder.NewWithMockedTerminal()
 			events = append(events, key(termbox.KeyEsc))
 			term.SetEvents(events...)
 
 			assertWithGolden(t, func(t *testing.T) string {
-				f := fuzzyfinder.New()
 				_, err := f.Find(
 					tracks,
 					func(i int) string {
@@ -182,11 +174,11 @@ func TestFind_enter(t *testing.T) {
 			c := c
 			events := c.events
 
-			term := newMockedTerminal()
+			f, term := fuzzyfinder.NewWithMockedTerminal()
 			events = append(events, key(termbox.KeyEnter))
 			term.SetEvents(events...)
 
-			idx, err := fuzzyfinder.Find(
+			idx, err := f.Find(
 				tracks,
 				func(i int) string {
 					return tracks[i].Name
@@ -236,11 +228,10 @@ func TestFindMulti(t *testing.T) {
 			c := c
 			events := c.events
 
-			term := newMockedTerminal()
+			f, term := fuzzyfinder.NewWithMockedTerminal()
 			events = append(events, key(termbox.KeyEnter))
 			term.SetEvents(events...)
 
-			f := fuzzyfinder.New()
 			idxs, err := f.FindMulti(
 				tracks,
 				func(i int) string {
@@ -332,9 +323,8 @@ func ExampleFindMulti() {
 
 func BenchmarkFind(b *testing.B) {
 	for i := 0; i < b.N; i++ {
-		term := newMockedTerminal()
+		f, term := fuzzyfinder.NewWithMockedTerminal()
 		term.SetEvents(append(runes("adrele!!"), key(termbox.KeyEsc))...)
-		f := fuzzyfinder.New()
 		f.Find(
 			tracks,
 			func(i int) string {

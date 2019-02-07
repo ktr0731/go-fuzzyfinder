@@ -31,7 +31,7 @@ lint:
 
 .PHONY: coverage
 coverage:
-	DEBUG=true go test -v -race -coverpkg ./... -covermode=atomic -tags e2e -coverprofile=coverage.txt -race $(shell go list -tags e2e ./...)
+	DEBUG=true go test -v -coverpkg ./... -covermode=atomic -tags e2e -coverprofile=coverage.txt -race $(shell go list -tags e2e ./...)
 
 .PHONY: coverage-web
 coverage-web: coverage

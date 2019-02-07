@@ -4,14 +4,6 @@ import (
 	termbox "github.com/nsf/termbox-go"
 )
 
-var term terminal = &termImpl{}
-
-// UseRealTerminal switches the terminal which is used from
-// this package to a real one.
-func UseRealTerminal() {
-	term = &termImpl{}
-}
-
 // terminal is an abstraction for mocking termbox-go.
 type terminal interface {
 	init() error
