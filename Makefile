@@ -25,13 +25,12 @@ unit-test: lint
 lint:
 	golangci-lint run --disable-all \
 		--skip-files 'helper_test.go' \
-		--build-tags e2e \
 		-e 'should have name of the form ErrFoo' -E 'deadcode,govet,golint' \
 		./...
 
 .PHONY: coverage
 coverage:
-	DEBUG=true go test -v -coverpkg ./... -covermode=atomic -tags e2e -coverprofile=coverage.txt -race $(shell go list -tags e2e ./...)
+	DEBUG=true go test -v -coverpkg ./... -covermode=atomic -coverprofile=coverage.txt -race $(shell go list ./...)
 
 .PHONY: coverage-web
 coverage-web: coverage

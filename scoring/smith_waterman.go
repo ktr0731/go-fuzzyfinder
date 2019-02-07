@@ -105,7 +105,7 @@ func smithWaterman(s1, s2 []rune) (int, [2]int) {
 				}
 				fmt.Println()
 			}
-			println()
+			fmt.Println()
 		}
 		printSlice(H)
 		printSlice(D)
