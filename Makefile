@@ -11,7 +11,7 @@ build:
 	go build ./...
 
 .PHONY: test
-test: format unit-test e2e-test
+test: format unit-test
 
 .PHONY: format
 format:
@@ -20,10 +20,6 @@ format:
 .PHONY: unit-test
 unit-test: lint
 	go test -v -race ./...
-
-.PHONY: e2e-test
-e2e-test: lint
-	go test -v -tags e2e ./...
 
 .PHONY: lint
 lint:

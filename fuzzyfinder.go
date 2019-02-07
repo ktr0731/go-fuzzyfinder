@@ -149,8 +149,7 @@ func (f *finder) _draw() {
 			fg := termbox.ColorDefault
 			bg := termbox.ColorDefault
 			// Highlight selected strings.
-			// TODO: refacotr
-			if len(f.state.input) != 0 && posIdx < len(f.state.input) {
+			if posIdx < len(f.state.input) {
 				from, to := m.Pos[0], m.Pos[1]
 				if !(from == -1 && to == -1) && (from <= j && j <= to) {
 					if unicode.ToLower(f.state.input[posIdx]) == unicode.ToLower(r) {
@@ -483,7 +482,6 @@ func (f *finder) find(items []string, matched []matching.Matched, opts []Option)
 				})
 				return idxs, nil
 			}
-			panic(fmt.Sprint(f.state.matched[f.state.y].Pos))
 			return []int{f.state.matched[f.state.y].Idx}, nil
 		case err != nil:
 			return nil, errors.Wrap(err, "failed to read a key")

@@ -20,7 +20,7 @@ type fuzzKey struct {
 
 var (
 	letters = []rune("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789一花二乃三玖四葉五月")
-	keys    = []termbox.Key{
+	tbkeys  = []termbox.Key{
 		termbox.KeyCtrlA,
 		termbox.KeyCtrlB,
 		termbox.KeyCtrlE,
@@ -88,7 +88,7 @@ func TestFuzz(t *testing.T) {
 			if rand.Intn(10) > 3 {
 				events[i] = ch(letters[rand.Intn(len(letters)-1)])
 			} else {
-				events[i] = key(keys[rand.Intn(len(keys)-1)])
+				events[i] = key(tbkeys[rand.Intn(len(tbkeys)-1)])
 			}
 		}
 

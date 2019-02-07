@@ -16,14 +16,15 @@ type Matched struct {
 	// search matched strings.
 	Idx int
 	// Pos is the range of matched position.
-	// [2]int represents a closed interval of a position.
+	// [2]int represents a open interval of a position.
 	Pos [2]int
 	// score is the value that indicates how it similar to the input string.
 	// The bigger score, the more similar it is.
 	score int
 }
 
-type option func(*opt)
+// Option represents available matching options.
+type Option func(*opt)
 
 type Mode int
 
@@ -39,7 +40,7 @@ type opt struct {
 }
 
 // WithMode specifies a matching mode. The default mode is ModeSmart.
-func WithMode(m Mode) option {
+func WithMode(m Mode) Option {
 	return func(o *opt) {
 		o.mode = m
 	}
@@ -47,7 +48,7 @@ func WithMode(m Mode) option {
 
 // FindAll tries to find out sub-strings from slice that match the passed argument in.
 // The returned slice is sorted by similarity scores in descending order.
-func FindAll(in string, slice []string, opts ...option) []Matched {
+func FindAll(in string, slice []string, opts ...Option) []Matched {
 	var opt opt
 	for _, o := range opts {
 		o(&opt)
@@ -74,7 +75,6 @@ func match(input string, slice []string, opt opt) (res []Matched) {
 
 	in := []rune(input)
 	for idxOfSlice, s := range slice {
-		// var from, idx int
 		var idx int
 		if opt.mode == ModeCaseInsensitive {
 			s = strings.ToLower(s)
@@ -82,15 +82,11 @@ func match(input string, slice []string, opt opt) (res []Matched) {
 	LINE_MATCHING:
 		for _, r := range []rune(s) {
 			if r == in[idx] {
-				// if idx == 0 {
-				// 	from = i
-				// }
 				idx++
 				if idx == len(in) {
 					score, pos := scoring.Calculate(s, input)
 					res = append(res, Matched{
 						Idx: idxOfSlice,
-						// Pos: [2]int{from, i + 1},
 						Pos: pos,
 						// TODO: 引数と順番をあわせる
 						score: score,

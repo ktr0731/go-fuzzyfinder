@@ -1,6 +1,7 @@
 package matching_test
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/ktr0731/go-fuzzyfinder/matching"
@@ -46,8 +47,15 @@ func TestMatch(t *testing.T) {
 			if m.Idx != c.idx {
 				t.Errorf("m.Idx must be equal to %d, but got %d", c.idx, m.Idx)
 			}
-			from, to := m.Pos[0], m.Pos[1]
-			if slice[c.idx][from:to] != c.expected {
+			from, to := m.Pos[0], m.Pos[1]+1
+			var actual string
+			fmt.Println(to, slice[c.idx])
+			if to > len(slice[c.idx]) {
+				actual = slice[c.idx][from:]
+			} else {
+				actual = slice[c.idx][from:to]
+			}
+			if actual != c.expected {
 				t.Errorf("invalid range: from = %d, to = %d, content = %s, expected = %s", from, to, slice[2][from:to], c.expected)
 			}
 		})

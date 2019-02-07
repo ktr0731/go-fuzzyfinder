@@ -111,8 +111,10 @@ func smithWaterman(s1, s2 []rune) (int, [2]int) {
 		printSlice(D)
 	}
 
-	// positions
+	// Determine the matched position.
+
 	var from, to int
+	cnt := 1
 
 	// maxJ is the last index of s2.
 	// If maxJ is equal to the length of s2, it means there are no matched runes after maxJ.
@@ -122,6 +124,7 @@ func smithWaterman(s1, s2 []rune) (int, [2]int) {
 		j := maxJ + 1
 		for i := maxI + 1; i < len(s1); i++ {
 			if unicode.ToLower(s1[i]) == unicode.ToLower(s2[j]) {
+				cnt++
 				j++
 				if j == len(s2) {
 					to = i + 1
@@ -131,7 +134,6 @@ func smithWaterman(s1, s2 []rune) (int, [2]int) {
 		}
 	}
 
-	cnt := 1
 	for i := maxI - 1; i > 0; i-- {
 		if cnt == len(s2) {
 			from = i + 1
