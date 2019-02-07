@@ -86,9 +86,8 @@ func match(input string, slice []string, opt opt) (res []Matched) {
 				if idx == len(in) {
 					score, pos := scoring.Calculate(s, input)
 					res = append(res, Matched{
-						Idx: idxOfSlice,
-						Pos: pos,
-						// TODO: 引数と順番をあわせる
+						Idx:   idxOfSlice,
+						Pos:   pos,
 						score: score,
 					})
 					break LINE_MATCHING

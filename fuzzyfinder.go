@@ -505,7 +505,11 @@ func isInTesting() bool {
 //
 // Find returns ErrAbort if a call of Find is finished with no selection.
 func Find(slice interface{}, itemFunc func(i int) string, opts ...Option) (int, error) {
-	res, err := find(slice, itemFunc, opts)
+	return defaultFinder.Find(slice, itemFunc, opts...)
+}
+
+func (f *finder) Find(slice interface{}, itemFunc func(i int) string, opts ...Option) (int, error) {
+	res, err := f.FindMulti(slice, itemFunc, opts...)
 	if err != nil {
 		return 0, err
 	}
@@ -515,10 +519,12 @@ func Find(slice interface{}, itemFunc func(i int) string, opts ...Option) (int, 
 // FindMulti is nearly same as the Find. The only one difference point from
 // Find is the user can select multiple items at once by tab key.
 func FindMulti(slice interface{}, itemFunc func(i int) string, opts ...Option) ([]int, error) {
-	return find(slice, itemFunc, append(opts, withMulti()))
+	return defaultFinder.FindMulti(slice, itemFunc, opts...)
 }
 
-func find(slice interface{}, itemFunc func(i int) string, opts []Option) ([]int, error) {
+func (f *finder) FindMulti(slice interface{}, itemFunc func(i int) string, opts ...Option) ([]int, error) {
+	opts = append(opts, withMulti())
+
 	rv := reflect.ValueOf(slice)
 	if rv.Kind() != reflect.Slice {
 		return nil, errors.Errorf("the first argument must be a slice, but got %T", slice)

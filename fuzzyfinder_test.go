@@ -145,7 +145,8 @@ func TestFind(t *testing.T) {
 			term.SetEvents(events...)
 
 			assertWithGolden(t, func(t *testing.T) string {
-				_, err := fuzzyfinder.Find(
+				f := fuzzyfinder.New()
+				_, err := f.Find(
 					tracks,
 					func(i int) string {
 						return tracks[i].Name
@@ -239,7 +240,8 @@ func TestFindMulti(t *testing.T) {
 			events = append(events, key(termbox.KeyEnter))
 			term.SetEvents(events...)
 
-			idxs, err := fuzzyfinder.FindMulti(
+			f := fuzzyfinder.New()
+			idxs, err := f.FindMulti(
 				tracks,
 				func(i int) string {
 					return tracks[i].Name
@@ -325,6 +327,26 @@ func ExampleFindMulti() {
 	})
 	for _, idx := range idxs {
 		fmt.Println(slice[idx])
+	}
+}
+
+func BenchmarkFind(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		term := newMockedTerminal()
+		term.SetEvents(append(runes("adrele!!"), key(termbox.KeyEsc))...)
+		f := fuzzyfinder.New()
+		f.Find(
+			tracks,
+			func(i int) string {
+				return tracks[i].Name
+			},
+			fuzzyfinder.WithPreviewWindow(func(i, width, height int) string {
+				if i == -1 {
+					return "not found"
+				}
+				return "Name: " + tracks[i].Name + "\nArtist: " + tracks[i].Artist
+			}),
+		)
 	}
 }
 
