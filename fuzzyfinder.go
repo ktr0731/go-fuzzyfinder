@@ -145,10 +145,11 @@ func (f *finder) _draw() {
 
 		var posIdx int
 		w := 2
-		for j, r := range f.state.items[m.Idx] {
+		for j, r := range []rune(f.state.items[m.Idx]) {
 			fg := termbox.ColorDefault
 			bg := termbox.ColorDefault
 			// Highlight selected strings.
+			// TODO: refacotr
 			if len(f.state.input) != 0 && posIdx < len(f.state.input) {
 				from, to := m.Pos[0], m.Pos[1]
 				if !(from == -1 && to == -1) && (from <= j && j <= to) {
@@ -456,7 +457,7 @@ func (f *finder) find(items []string, matched []matching.Matched, opts []Option)
 	defer term.close()
 
 	for {
-		f.draw(0)
+		f.draw(10 * time.Millisecond)
 		err := f.readKey()
 		switch {
 		case err == ErrAbort:
