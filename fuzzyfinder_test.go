@@ -124,6 +124,7 @@ func TestFind(t *testing.T) {
 		"ctrl-u":           {append(runes("恋をしたのは"), keys(termbox.KeyArrowLeft, termbox.KeyCtrlU, termbox.KeyArrowRight)...)},
 		"long item":        {keys(termbox.KeyArrowUp, termbox.KeyArrowUp, termbox.KeyArrowUp)},
 		"paging":           {keys(termbox.KeyArrowUp, termbox.KeyArrowUp, termbox.KeyArrowUp, termbox.KeyArrowUp, termbox.KeyArrowUp, termbox.KeyArrowUp, termbox.KeyArrowUp, termbox.KeyArrowUp)},
+		"tab doesn't work": {keys(termbox.KeyTab)},
 		"backspace doesnt change x if cursorX is 0": {append(runes("a"), keys(termbox.KeyCtrlA, termbox.KeyBackspace, termbox.KeyCtrlF)...)},
 	}
 
@@ -165,7 +166,8 @@ func TestFind_enter(t *testing.T) {
 		events   []termbox.Event
 		expected int
 	}{
-		"initial": {events: keys(termbox.KeyTab), expected: 0},
+		"initial":                      {events: keys(termbox.KeyTab), expected: 0},
+		"mode smart to case-sensitive": {events: runes("CHI"), expected: 7},
 	}
 
 	for name, c := range cases {

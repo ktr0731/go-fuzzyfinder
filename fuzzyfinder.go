@@ -452,7 +452,23 @@ func (f *finder) filter() {
 	}
 }
 
-func (f *finder) find(items []string, matched []matching.Matched, opts []Option) ([]int, error) {
+func (f *finder) find(slice interface{}, itemFunc func(i int) string, opts []Option) ([]int, error) {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return nil, errors.Errorf("the first argument must be a slice, but got %T", slice)
+	}
+	if itemFunc == nil {
+		return nil, errors.New("itemFunc must not be nil")
+	}
+
+	sliceLen := rv.Len()
+	items := make([]string, sliceLen)
+	matched := make([]matching.Matched, sliceLen)
+	for i := 0; i < sliceLen; i++ {
+		items[i] = itemFunc(i)
+		matched[i] = matching.Matched{Idx: i}
+	}
+
 	if err := f.initFinder(items, matched, opts); err != nil {
 		return nil, errors.Wrap(err, "failed to initialize the fuzzy finder")
 	}
@@ -508,7 +524,7 @@ func Find(slice interface{}, itemFunc func(i int) string, opts ...Option) (int, 
 }
 
 func (f *finder) Find(slice interface{}, itemFunc func(i int) string, opts ...Option) (int, error) {
-	res, err := f.FindMulti(slice, itemFunc, opts...)
+	res, err := f.find(slice, itemFunc, opts)
 	if err != nil {
 		return 0, err
 	}
@@ -523,24 +539,7 @@ func FindMulti(slice interface{}, itemFunc func(i int) string, opts ...Option) (
 
 func (f *finder) FindMulti(slice interface{}, itemFunc func(i int) string, opts ...Option) ([]int, error) {
 	opts = append(opts, withMulti())
-
-	rv := reflect.ValueOf(slice)
-	if rv.Kind() != reflect.Slice {
-		return nil, errors.Errorf("the first argument must be a slice, but got %T", slice)
-	}
-	if itemFunc == nil {
-		return nil, errors.New("itemFunc must not be nil")
-	}
-
-	sliceLen := rv.Len()
-	items := make([]string, sliceLen)
-	matchedItems := make([]matching.Matched, sliceLen)
-	for i := 0; i < sliceLen; i++ {
-		items[i] = itemFunc(i)
-		matchedItems[i] = matching.Matched{Idx: i}
-	}
-
-	return f.find(items, matchedItems, opts)
+	return f.find(slice, itemFunc, opts)
 }
 
 func isInTesting() bool {
