@@ -266,6 +266,9 @@ func BenchmarkMatch(b *testing.B) {
 		"Suspendisse faucibus, nunc et pellentesque egestas, lacus ante convallis tellus, vitae iaculis lacus elit id tortor",
 	}
 	in := "cas hr "
+
+	b.ReportAllocs()
+
 	b.Run("case insensitive", func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
 			matching.FindAll(in, benchSlice)
