@@ -197,14 +197,16 @@ func TestFind_enter(t *testing.T) {
 
 func TestFind_error(t *testing.T) {
 	t.Run("not a slice", func(t *testing.T) {
-		_, err := fuzzyfinder.Find("", func(i int) string { return "" })
+		f := fuzzyfinder.New()
+		_, err := f.Find("", func(i int) string { return "" })
 		if err == nil {
 			t.Error("Find must return an error, but got nil")
 		}
 	})
 
 	t.Run("itemFunc is nil", func(t *testing.T) {
-		_, err := fuzzyfinder.Find([]string{}, nil)
+		f := fuzzyfinder.New()
+		_, err := f.Find([]string{}, nil)
 		if err == nil {
 			t.Error("Find must return an error, but got nil")
 		}

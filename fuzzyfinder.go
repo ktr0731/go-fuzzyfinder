@@ -60,7 +60,7 @@ type state struct {
 
 type finder struct {
 	term      terminal
-	stateMu   sync.Mutex
+	stateMu   sync.RWMutex
 	state     state
 	drawTimer *time.Timer
 	opt       *opt
@@ -88,12 +88,14 @@ func (f *finder) initFinder(items []string, matched []matching.Matched, opts []O
 	f.state.items = items
 	f.state.matched = matched
 	f.state.allMatched = matched
-	f.drawTimer = time.AfterFunc(0, func() {
-		f._draw()
-		f._drawPreview()
-		f.term.flush()
-	})
-	f.drawTimer.Stop()
+	if !isInTesting() {
+		f.drawTimer = time.AfterFunc(0, func() {
+			f._draw()
+			f._drawPreview()
+			f.term.flush()
+		})
+		f.drawTimer.Stop()
+	}
 	return nil
 }
 
@@ -270,8 +272,8 @@ func (f *finder) _drawPreview() {
 }
 
 func (f *finder) draw(d time.Duration) {
-	f.stateMu.Lock()
-	defer f.stateMu.Unlock()
+	f.stateMu.RLock()
+	defer f.stateMu.RUnlock()
 
 	if isInTesting() {
 		// Don't use goroutine scheduling.
@@ -481,8 +483,8 @@ func (f *finder) find(slice interface{}, itemFunc func(i int) string, opts []Opt
 		case err == ErrAbort:
 			return nil, ErrAbort
 		case err == errEntered:
-			f.stateMu.Lock()
-			defer f.stateMu.Unlock()
+			f.stateMu.RLock()
+			defer f.stateMu.RUnlock()
 
 			if len(f.state.matched) == 0 {
 				return nil, ErrAbort
