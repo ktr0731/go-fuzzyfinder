@@ -285,6 +285,9 @@ func (f *finder) draw(d time.Duration) {
 	}
 }
 
+// readKey reads a key input.
+// It returns ErrAbort if esc, CTRL-C or CTRL-D keys are inputted.
+// Also, it returns errEntered if enter key is inputted.
 func (f *finder) readKey() error {
 	switch e := f.term.pollEvent(); e.Type {
 	case termbox.EventKey:
@@ -478,6 +481,9 @@ func (f *finder) find(slice interface{}, itemFunc func(i int) string, opts []Opt
 
 	for {
 		f.draw(10 * time.Millisecond)
+
+		prevInputLen := len(f.state.input)
+
 		err := f.readKey()
 		switch {
 		case err == ErrAbort:
@@ -507,7 +513,9 @@ func (f *finder) find(slice interface{}, itemFunc func(i int) string, opts []Opt
 		case err != nil:
 			return nil, errors.Wrap(err, "failed to read a key")
 		}
-		f.filter()
+		if prevInputLen != len(f.state.input) {
+			f.filter()
+		}
 	}
 }
 
