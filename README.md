@@ -79,3 +79,7 @@ It is a bother and complicated.
 `go-fuzzyfinder` resolves above issues.
 Dealing with the first issue, `go-fuzzyfinder` provides the preview-window feature (See an example in [Usage](#usage)).
 Also, by using `go-fuzzyfinder`, built tools don't require any fuzzy-finders.
+
+## See Also
+- [Fuzzy-finder as a Go library](https://medium.com/@ktr0731/fuzzy-finder-as-a-go-library-590b7458200f)
+- [(Japanese) fzf ライクな fuzzy-finder を提供する Go ライブラリを書いた](https://syfm.hatenablog.com/entry/2019/02/09/120000)
