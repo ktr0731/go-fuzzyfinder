@@ -81,6 +81,8 @@ func (f *finder) initFinder(items []string, matched []matching.Matched, opts []O
 	}
 	f.opt = &opt
 
+	f.state = state{}
+
 	if opt.multi {
 		f.state.selection = map[int]int{}
 	}
