@@ -11,11 +11,15 @@ build:
 	go build ./...
 
 .PHONY: test
-test: format unit-test
+test: format unit-test credits
 
 .PHONY: format
 format:
 	go mod tidy
+
+.PHONY: credits
+credits:
+	gocredits . > CREDITS
 
 .PHONY: unit-test
 unit-test: lint
