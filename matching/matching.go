@@ -16,7 +16,7 @@ type Matched struct {
 	// search matched strings.
 	Idx int
 	// Pos is the range of matched position.
-	// [2]int represents a open interval of a position.
+	// [2]int represents an open interval of a position.
 	Pos [2]int
 	// score is the value that indicates how it similar to the input string.
 	// The bigger score, the more similar it is.
