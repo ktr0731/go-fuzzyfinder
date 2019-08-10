@@ -4,6 +4,7 @@
 package fuzzyfinder
 
 import (
+	"context"
 	"flag"
 	"fmt"
 	"reflect"
@@ -33,7 +34,7 @@ var (
 type state struct {
 	items      []string           // All item names.
 	allMatched []matching.Matched // All items.
-	matched    []matching.Matched
+	matched    []matching.Matched // Matched items against to the input.
 
 	// x is the current index of the input line.
 	x int
@@ -66,7 +67,7 @@ type finder struct {
 	opt       *opt
 }
 
-func (f *finder) initFinder(items []string, matched []matching.Matched, opts []Option) error {
+func (f *finder) initFinder(items []string, matched []matching.Matched, opt opt) error {
 	if f.term == nil {
 		f.term = &termImpl{}
 	}
@@ -75,12 +76,7 @@ func (f *finder) initFinder(items []string, matched []matching.Matched, opts []O
 		return errors.Wrap(err, "failed to initialize termbox")
 	}
 
-	var opt opt
-	for _, o := range opts {
-		o(&opt)
-	}
 	f.opt = &opt
-
 	f.state = state{}
 
 	if opt.multi {
@@ -99,6 +95,14 @@ func (f *finder) initFinder(items []string, matched []matching.Matched, opts []O
 		f.drawTimer.Stop()
 	}
 	return nil
+}
+
+func (f *finder) updateItems(items []string, matched []matching.Matched) {
+	f.state.items = items
+	f.state.matched = matched
+	f.state.allMatched = matched
+	f.filter()
+	f.draw(0 * time.Millisecond)
 }
 
 // _draw is used from draw with a timer.
@@ -460,31 +464,93 @@ func (f *finder) filter() {
 }
 
 func (f *finder) find(slice interface{}, itemFunc func(i int) string, opts []Option) ([]int, error) {
-	rv := reflect.ValueOf(slice)
-	if rv.Kind() != reflect.Slice {
-		return nil, errors.Errorf("the first argument must be a slice, but got %T", slice)
-	}
 	if itemFunc == nil {
 		return nil, errors.New("itemFunc must not be nil")
 	}
 
-	sliceLen := rv.Len()
-	items := make([]string, sliceLen)
-	matched := make([]matching.Matched, sliceLen)
-	for i := 0; i < sliceLen; i++ {
-		items[i] = itemFunc(i)
-		matched[i] = matching.Matched{Idx: i}
+	var opt opt
+	for _, o := range opts {
+		o(&opt)
 	}
 
-	if err := f.initFinder(items, matched, opts); err != nil {
+	rv := reflect.ValueOf(slice)
+	if opt.hotReload && (rv.Kind() != reflect.Ptr || reflect.Indirect(rv).Kind() != reflect.Slice) {
+		return nil, errors.Errorf("the first argument must be a pointer to a slice, but got %T", slice)
+	} else if !opt.hotReload && rv.Kind() != reflect.Slice {
+		return nil, errors.Errorf("the first argument must be a slice, but got %T", slice)
+	}
+
+	makeItems := func(sliceLen int) ([]string, []matching.Matched) {
+		items := make([]string, sliceLen)
+		matched := make([]matching.Matched, sliceLen)
+		for i := 0; i < sliceLen; i++ {
+			items[i] = itemFunc(i)
+			matched[i] = matching.Matched{Idx: i}
+		}
+		return items, matched
+	}
+
+	var (
+		items   []string
+		matched []matching.Matched
+	)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	inited := make(chan struct{})
+	if opt.hotReload && rv.Kind() == reflect.Ptr {
+		rvv := reflect.Indirect(rv)
+		items, matched = makeItems(rvv.Len())
+
+		go func() {
+			<-inited
+
+			var prev int
+			for {
+				select {
+				case <-ctx.Done():
+					return
+				case <-time.After(50 * time.Millisecond):
+					curr := rvv.Len()
+					if prev != curr {
+						items, matched = makeItems(curr)
+						f.updateItems(items, matched)
+					}
+					prev = curr
+				}
+			}
+		}()
+	} else {
+		items, matched = makeItems(rv.Len())
+	}
+
+	if err := f.initFinder(items, matched, opt); err != nil {
 		return nil, errors.Wrap(err, "failed to initialize the fuzzy finder")
 	}
 	defer f.term.close()
 
+	close(inited)
+
+	go func() {
+		prevInputLen := len(f.state.input)
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case <-time.After(100 * time.Millisecond):
+				currInputLen := len(f.state.input)
+				if prevInputLen != currInputLen {
+					f.filter()
+					f.draw(0 * time.Millisecond)
+				}
+				prevInputLen = currInputLen
+			}
+		}
+	}()
+
 	for {
 		f.draw(10 * time.Millisecond)
-
-		prevInputLen := len(f.state.input)
 
 		err := f.readKey()
 		switch {
@@ -514,9 +580,6 @@ func (f *finder) find(slice interface{}, itemFunc func(i int) string, opts []Opt
 			return []int{f.state.matched[f.state.y].Idx}, nil
 		case err != nil:
 			return nil, errors.Wrap(err, "failed to read a key")
-		}
-		if prevInputLen != len(f.state.input) {
-			f.filter()
 		}
 	}
 }
