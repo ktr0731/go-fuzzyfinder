@@ -9,8 +9,8 @@ import (
 	"os"
 	"testing"
 
+	"github.com/gdamore/tcell/termbox"
 	fuzzyfinder "github.com/ktr0731/go-fuzzyfinder"
-	termbox "github.com/nsf/termbox-go"
 )
 
 type fuzzKey struct {

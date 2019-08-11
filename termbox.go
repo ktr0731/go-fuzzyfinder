@@ -1,7 +1,7 @@
 package fuzzyfinder
 
 import (
-	termbox "github.com/nsf/termbox-go"
+	"github.com/gdamore/tcell/termbox"
 )
 
 // terminal is an abstraction for mocking termbox-go.
@@ -28,7 +28,8 @@ func (t *termImpl) size() (width int, height int) {
 }
 
 func (t *termImpl) clear(fg termbox.Attribute, bg termbox.Attribute) error {
-	return termbox.Clear(fg, bg)
+	termbox.Clear(fg, bg)
+	return nil
 }
 
 func (t *termImpl) setCell(x int, y int, ch rune, fg termbox.Attribute, bg termbox.Attribute) {
