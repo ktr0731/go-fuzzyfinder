@@ -8,9 +8,9 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/gdamore/tcell/termbox"
 	"github.com/google/go-cmp/cmp"
 	fuzzyfinder "github.com/ktr0731/go-fuzzyfinder"
-	termbox "github.com/nsf/termbox-go"
 )
 
 var (
