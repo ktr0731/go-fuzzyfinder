@@ -59,10 +59,17 @@ type state struct {
 	selectionIdx int
 }
 
+type cache struct {
+	// currentInputLen holds the length of state.input.
+	currentInputLen int
+}
+
 type finder struct {
 	term      terminal
 	stateMu   sync.RWMutex
 	state     state
+	cache     cache
+	cacheMu   sync.RWMutex
 	drawTimer *time.Timer
 	opt       *opt
 }
@@ -295,6 +302,13 @@ func (f *finder) draw(d time.Duration) {
 // It returns ErrAbort if esc, CTRL-C or CTRL-D keys are inputted.
 // Also, it returns errEntered if enter key is inputted.
 func (f *finder) readKey() error {
+	updateInput := func(s []rune) {
+		f.cacheMu.Lock()
+		defer f.cacheMu.Unlock()
+		f.cache.currentInputLen = len(s)
+		f.state.input = s
+	}
+
 	switch e := f.term.pollEvent(); e.Type {
 	case termbox.EventKey:
 		switch e.Key {
@@ -310,13 +324,13 @@ func (f *finder) readKey() error {
 			// Remove the latest input rune.
 			f.state.cursorX -= runewidth.RuneWidth(f.state.input[len(f.state.input)-1])
 			f.state.x--
-			f.state.input = f.state.input[0 : len(f.state.input)-1]
+			updateInput(f.state.input[0 : len(f.state.input)-1])
 		case termbox.KeyDelete:
 			if f.state.x == len(f.state.input) {
 				return nil
 			}
 			x := f.state.x
-			f.state.input = append(f.state.input[:x], f.state.input[x+1:]...)
+			updateInput(append(f.state.input[:x], f.state.input[x+1:]...))
 		case termbox.KeyEnter:
 			return errEntered
 		case termbox.KeyArrowLeft, termbox.KeyCtrlB:
@@ -340,18 +354,18 @@ func (f *finder) readKey() error {
 			inStr := string(in)
 			pos := strings.LastIndex(strings.TrimRightFunc(inStr, unicode.IsSpace), " ")
 			if pos == -1 {
-				f.state.input = []rune{}
+				updateInput([]rune{})
 				f.state.cursorX = 0
 				f.state.x = 0
 				return nil
 			}
 			pos = utf8.RuneCountInString(inStr[:pos])
 			newIn := f.state.input[:pos+1]
-			f.state.input = newIn
+			updateInput(newIn)
 			f.state.cursorX = runewidth.StringWidth(string(newIn))
 			f.state.x = len(newIn)
 		case termbox.KeyCtrlU:
-			f.state.input = f.state.input[f.state.x:]
+			updateInput(f.state.input[f.state.x:])
 			f.state.cursorX = 0
 			f.state.x = 0
 		case termbox.KeyArrowUp, termbox.KeyCtrlK, termbox.KeyCtrlP:
@@ -402,7 +416,7 @@ func (f *finder) readKey() error {
 				}
 
 				x := f.state.x
-				f.state.input = append(f.state.input[:x], append([]rune{e.Ch}, f.state.input[x:]...)...)
+				updateInput(append(f.state.input[:x], append([]rune{e.Ch}, f.state.input[x:]...)...))
 				f.state.cursorX += runewidth.RuneWidth(e.Ch)
 				f.state.x++
 			}
@@ -420,12 +434,12 @@ func (f *finder) readKey() error {
 
 		maxLineWidth := width - 2 - 1
 		if maxLineWidth < 0 {
-			f.state.input = nil
+			updateInput(nil)
 			f.state.cursorX = 0
 			f.state.x = 0
 		} else if len(f.state.input)+1 > maxLineWidth {
 			// Discard inputted rune.
-			f.state.input = f.state.input[:maxLineWidth]
+			updateInput(f.state.input[:maxLineWidth])
 			f.state.cursorX = runewidth.StringWidth(string(f.state.input))
 			f.state.x = maxLineWidth
 		}
@@ -532,22 +546,26 @@ func (f *finder) find(slice interface{}, itemFunc func(i int) string, opts []Opt
 
 	close(inited)
 
-	go func() {
-		prevInputLen := len(f.state.input)
-		for {
-			select {
-			case <-ctx.Done():
-				return
-			case <-time.After(100 * time.Millisecond):
-				currInputLen := len(f.state.input)
-				if prevInputLen != currInputLen {
-					f.filter()
-					f.draw(0 * time.Millisecond)
-				}
-				prevInputLen = currInputLen
-			}
-		}
-	}()
+	// go func() {
+	// 	f.cacheMu.Lock()
+	// 	prevInputLen := f.cache.currentInputLen
+	// 	f.cacheMu.Unlock()
+	// 	for {
+	// 		select {
+	// 		case <-ctx.Done():
+	// 			return
+	// 		case <-time.After(100 * time.Millisecond):
+	// 			f.cacheMu.Lock()
+	// 			currInputLen := f.cache.currentInputLen
+	// 			f.cacheMu.Unlock()
+	// 			if prevInputLen != currInputLen {
+	// 				f.filter()
+	// 				f.draw(0 * time.Millisecond)
+	// 			}
+	// 			prevInputLen = currInputLen
+	// 		}
+	// 	}
+	// }()
 
 	for {
 		f.draw(10 * time.Millisecond)
