@@ -546,29 +546,12 @@ func (f *finder) find(slice interface{}, itemFunc func(i int) string, opts []Opt
 
 	close(inited)
 
-	// go func() {
-	// 	f.cacheMu.Lock()
-	// 	prevInputLen := f.cache.currentInputLen
-	// 	f.cacheMu.Unlock()
-	// 	for {
-	// 		select {
-	// 		case <-ctx.Done():
-	// 			return
-	// 		case <-time.After(100 * time.Millisecond):
-	// 			f.cacheMu.Lock()
-	// 			currInputLen := f.cache.currentInputLen
-	// 			f.cacheMu.Unlock()
-	// 			if prevInputLen != currInputLen {
-	// 				f.filter()
-	// 				f.draw(0 * time.Millisecond)
-	// 			}
-	// 			prevInputLen = currInputLen
-	// 		}
-	// 	}
-	// }()
-
 	for {
 		f.draw(10 * time.Millisecond)
+
+		f.cacheMu.Lock()
+		prevInputLen := f.cache.currentInputLen
+		f.cacheMu.Unlock()
 
 		err := f.readKey()
 		switch {
@@ -599,6 +582,12 @@ func (f *finder) find(slice interface{}, itemFunc func(i int) string, opts []Opt
 		case err != nil:
 			return nil, errors.Wrap(err, "failed to read a key")
 		}
+
+		f.cacheMu.Lock()
+		if prevInputLen != f.cache.currentInputLen {
+			f.filter()
+		}
+		f.cacheMu.Unlock()
 	}
 }
 

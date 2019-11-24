@@ -1,10 +1,20 @@
 SHELL := /bin/bash
 
+export PATH := $(PWD)/_tools:$(PATH)
 export GO111MODULE := on
 
 .PHONY: generate
 generate:
 	go generate ./...
+
+.PHONY: dept
+dept:
+	@go get github.com/ktr0731/dept@v0.1.2
+	@go build -o _tools/dept github.com/ktr0731/dept
+
+.PHONY: tools
+tools: dept
+	@dept -v build
 
 .PHONY: build
 build:
