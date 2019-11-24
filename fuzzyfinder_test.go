@@ -5,6 +5,7 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 
@@ -19,6 +20,7 @@ var (
 )
 
 func init() {
+	testing.Init()
 	flag.Parse()
 	if *update {
 		os.RemoveAll(filepath.Join("testdata", "fixtures"))
@@ -58,6 +60,9 @@ func assertWithGolden(t *testing.T, f func(t *testing.T) string) {
 		t.Fatalf("failed to load a golden file: %s", err)
 	}
 	expected := string(b)
+	if runtime.GOOS == "windows" {
+		expected = strings.Replace(expected, "\r\n", "\n", -1)
+	}
 
 	if diff := cmp.Diff(expected, actual); diff != "" {
 		t.Errorf("wrong result: \n%s", diff)
