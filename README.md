@@ -1,7 +1,7 @@
 # go-fuzzyfinder
 
 [![GoDoc](https://godoc.org/github.com/ktr0731/go-fuzzyfinder?status.svg)](https://godoc.org/github.com/ktr0731/go-fuzzyfinder)
-[![CircleCI](https://circleci.com/gh/ktr0731/go-fuzzyfinder.svg?style=svg)](https://circleci.com/gh/ktr0731/go-fuzzyfinder)
+[![GitHub Actions](https://github.com/ktr0731/go-fuzzyfinder/workflows/main/badge.svg)](https://github.com/ktr0731/go-fuzzyfinder/actions)
 [![codecov](https://codecov.io/gh/ktr0731/go-fuzzyfinder/branch/master/graph/badge.svg?token=RvpSTKDJGO)](https://codecov.io/gh/ktr0731/go-fuzzyfinder)  
 
 `go-fuzzyfinder` is a Go library that provides fuzzy-finding with an fzf-like terminal user interface.
