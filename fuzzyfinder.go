@@ -59,18 +59,12 @@ type state struct {
 	selectionIdx int
 }
 
-type cache struct {
-	// currentInputLen holds the length of state.input.
-	currentInputLen int
-}
-
 type finder struct {
 	term      terminal
 	stateMu   sync.RWMutex
 	state     state
-	cache     cache
-	cacheMu   sync.RWMutex
 	drawTimer *time.Timer
+	eventCh   chan struct{}
 	opt       *opt
 }
 
@@ -101,15 +95,17 @@ func (f *finder) initFinder(items []string, matched []matching.Matched, opt opt)
 		})
 		f.drawTimer.Stop()
 	}
+	f.eventCh = make(chan struct{}, 30) // A large value
 	return nil
 }
 
 func (f *finder) updateItems(items []string, matched []matching.Matched) {
+	f.stateMu.Lock()
 	f.state.items = items
 	f.state.matched = matched
 	f.state.allMatched = matched
-	f.filter()
-	f.draw(0 * time.Millisecond)
+	f.stateMu.Unlock()
+	f.eventCh <- struct{}{}
 }
 
 // _draw is used from draw with a timer.
@@ -302,14 +298,23 @@ func (f *finder) draw(d time.Duration) {
 // It returns ErrAbort if esc, CTRL-C or CTRL-D keys are inputted.
 // Also, it returns errEntered if enter key is inputted.
 func (f *finder) readKey() error {
-	updateInput := func(s []rune) {
-		f.cacheMu.Lock()
-		defer f.cacheMu.Unlock()
-		f.cache.currentInputLen = len(s)
-		f.state.input = s
-	}
+	f.stateMu.RLock()
+	prevInputLen := len(f.state.input)
+	f.stateMu.RUnlock()
+	defer func() {
+		f.stateMu.RLock()
+		currentInputLen := len(f.state.input)
+		f.stateMu.RUnlock()
+		if prevInputLen != currentInputLen {
+			f.eventCh <- struct{}{}
+		}
+	}()
 
-	switch e := f.term.pollEvent(); e.Type {
+	e := f.term.pollEvent()
+	f.stateMu.Lock()
+	defer f.stateMu.Unlock()
+
+	switch e.Type {
 	case termbox.EventKey:
 		switch e.Key {
 		case termbox.KeyEsc, termbox.KeyCtrlC, termbox.KeyCtrlD:
@@ -324,13 +329,14 @@ func (f *finder) readKey() error {
 			// Remove the latest input rune.
 			f.state.cursorX -= runewidth.RuneWidth(f.state.input[len(f.state.input)-1])
 			f.state.x--
-			updateInput(f.state.input[0 : len(f.state.input)-1])
+			f.state.input = f.state.input[0 : len(f.state.input)-1]
 		case termbox.KeyDelete:
 			if f.state.x == len(f.state.input) {
 				return nil
 			}
 			x := f.state.x
-			updateInput(append(f.state.input[:x], f.state.input[x+1:]...))
+
+			f.state.input = append(f.state.input[:x], f.state.input[x+1:]...)
 		case termbox.KeyEnter:
 			return errEntered
 		case termbox.KeyArrowLeft, termbox.KeyCtrlB:
@@ -354,24 +360,21 @@ func (f *finder) readKey() error {
 			inStr := string(in)
 			pos := strings.LastIndex(strings.TrimRightFunc(inStr, unicode.IsSpace), " ")
 			if pos == -1 {
-				updateInput([]rune{})
+				f.state.input = []rune{}
 				f.state.cursorX = 0
 				f.state.x = 0
 				return nil
 			}
 			pos = utf8.RuneCountInString(inStr[:pos])
 			newIn := f.state.input[:pos+1]
-			updateInput(newIn)
+			f.state.input = newIn
 			f.state.cursorX = runewidth.StringWidth(string(newIn))
 			f.state.x = len(newIn)
 		case termbox.KeyCtrlU:
-			updateInput(f.state.input[f.state.x:])
+			f.state.input = f.state.input[f.state.x:]
 			f.state.cursorX = 0
 			f.state.x = 0
 		case termbox.KeyArrowUp, termbox.KeyCtrlK, termbox.KeyCtrlP:
-			f.stateMu.Lock()
-			defer f.stateMu.Unlock()
-
 			if f.state.y+1 < len(f.state.matched) {
 				f.state.y++
 			}
@@ -416,7 +419,7 @@ func (f *finder) readKey() error {
 				}
 
 				x := f.state.x
-				updateInput(append(f.state.input[:x], append([]rune{e.Ch}, f.state.input[x:]...)...))
+				f.state.input = append(f.state.input[:x], append([]rune{e.Ch}, f.state.input[x:]...)...)
 				f.state.cursorX += runewidth.RuneWidth(e.Ch)
 				f.state.x++
 			}
@@ -434,17 +437,15 @@ func (f *finder) readKey() error {
 
 		maxLineWidth := width - 2 - 1
 		if maxLineWidth < 0 {
-			updateInput(nil)
+			f.state.input = nil
 			f.state.cursorX = 0
 			f.state.x = 0
 		} else if len(f.state.input)+1 > maxLineWidth {
 			// Discard inputted rune.
-			updateInput(f.state.input[:maxLineWidth])
+			f.state.input = f.state.input[:maxLineWidth]
 			f.state.cursorX = runewidth.StringWidth(string(f.state.input))
 			f.state.x = maxLineWidth
 		}
-
-		f.draw(200 * time.Millisecond)
 	}
 	return nil
 }
@@ -525,7 +526,7 @@ func (f *finder) find(slice interface{}, itemFunc func(i int) string, opts []Opt
 				select {
 				case <-ctx.Done():
 					return
-				case <-time.After(50 * time.Millisecond):
+				case <-time.After(30 * time.Millisecond):
 					curr := rvv.Len()
 					if prev != curr {
 						items, matched = makeItems(curr)
@@ -546,12 +547,20 @@ func (f *finder) find(slice interface{}, itemFunc func(i int) string, opts []Opt
 
 	close(inited)
 
+	go func() {
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case <-f.eventCh:
+				f.filter()
+				f.draw(0)
+			}
+		}
+	}()
+
 	for {
 		f.draw(10 * time.Millisecond)
-
-		f.cacheMu.Lock()
-		prevInputLen := f.cache.currentInputLen
-		f.cacheMu.Unlock()
 
 		err := f.readKey()
 		switch {
@@ -582,12 +591,6 @@ func (f *finder) find(slice interface{}, itemFunc func(i int) string, opts []Opt
 		case err != nil:
 			return nil, errors.Wrap(err, "failed to read a key")
 		}
-
-		f.cacheMu.Lock()
-		if prevInputLen != f.cache.currentInputLen {
-			f.filter()
-		}
-		f.cacheMu.Unlock()
 	}
 }
 

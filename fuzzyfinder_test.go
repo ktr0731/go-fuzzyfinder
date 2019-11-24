@@ -7,7 +7,9 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
+	"sync"
 	"testing"
+	"time"
 
 	"github.com/gdamore/tcell/termbox"
 	"github.com/google/go-cmp/cmp"
@@ -164,6 +166,41 @@ func TestFind(t *testing.T) {
 			})
 		})
 	}
+}
+
+func TestFind_hotReload(t *testing.T) {
+	f, term := fuzzyfinder.NewWithMockedTerminal()
+	events := append(runes("adrena"), keys(termbox.KeyEsc)...)
+	term.SetEvents(events...)
+
+	var mu sync.Mutex
+	assertWithGolden(t, func(t *testing.T) string {
+		_, err := f.Find(
+			&tracks,
+			func(i int) string {
+				mu.Lock()
+				defer mu.Unlock()
+				return tracks[i].Name
+			},
+			fuzzyfinder.WithPreviewWindow(func(i, width, height int) string {
+				// Hack, wait until updateItems is called.
+				time.Sleep(50 * time.Millisecond)
+				mu.Lock()
+				defer mu.Unlock()
+				if i == -1 {
+					return "not found"
+				}
+				return "Name: " + tracks[i].Name + "\nArtist: " + tracks[i].Artist
+			}),
+			fuzzyfinder.WithMode(fuzzyfinder.ModeCaseSensitive),
+			fuzzyfinder.WithHotReload(),
+		)
+		if err != fuzzyfinder.ErrAbort {
+			t.Fatalf("Find must return ErrAbort, but got '%s'", err)
+		}
+
+		return term.GetResult()
+	})
 }
 
 func TestFind_enter(t *testing.T) {
