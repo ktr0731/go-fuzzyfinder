@@ -307,24 +307,48 @@ func TestFindMulti(t *testing.T) {
 }
 
 func BenchmarkFind(b *testing.B) {
-	b.ReportAllocs()
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		f, term := fuzzyfinder.NewWithMockedTerminal()
-		term.SetEvents(append(runes("adrele!!"), key(termbox.KeyEsc))...)
-		f.Find(
-			tracks,
-			func(i int) string {
-				return tracks[i].Name
-			},
-			fuzzyfinder.WithPreviewWindow(func(i, width, height int) string {
-				if i == -1 {
-					return "not found"
-				}
-				return "Name: " + tracks[i].Name + "\nArtist: " + tracks[i].Artist
-			}),
-		)
-	}
+	b.Run("normal", func(b *testing.B) {
+		b.ReportAllocs()
+		b.ResetTimer()
+		for i := 0; i < b.N; i++ {
+			f, term := fuzzyfinder.NewWithMockedTerminal()
+			term.SetEvents(append(runes("adrele!!"), key(termbox.KeyEsc))...)
+			f.Find(
+				tracks,
+				func(i int) string {
+					return tracks[i].Name
+				},
+				fuzzyfinder.WithPreviewWindow(func(i, width, height int) string {
+					if i == -1 {
+						return "not found"
+					}
+					return "Name: " + tracks[i].Name + "\nArtist: " + tracks[i].Artist
+				}),
+			)
+		}
+	})
+
+	b.Run("hotreload", func(b *testing.B) {
+		b.ReportAllocs()
+		b.ResetTimer()
+		for i := 0; i < b.N; i++ {
+			f, term := fuzzyfinder.NewWithMockedTerminal()
+			term.SetEvents(append(runes("adrele!!"), key(termbox.KeyEsc))...)
+			f.Find(
+				&tracks,
+				func(i int) string {
+					return tracks[i].Name
+				},
+				fuzzyfinder.WithPreviewWindow(func(i, width, height int) string {
+					if i == -1 {
+						return "not found"
+					}
+					return "Name: " + tracks[i].Name + "\nArtist: " + tracks[i].Artist
+				}),
+				fuzzyfinder.WithHotReload(),
+			)
+		}
+	})
 }
 
 func runes(s string) []termbox.Event {
