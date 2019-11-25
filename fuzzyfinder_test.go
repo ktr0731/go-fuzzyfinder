@@ -307,11 +307,10 @@ func TestFindMulti(t *testing.T) {
 }
 
 func BenchmarkFind(b *testing.B) {
-	f, term := fuzzyfinder.NewWithMockedTerminal()
-
 	b.ReportAllocs()
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
+		f, term := fuzzyfinder.NewWithMockedTerminal()
 		term.SetEvents(append(runes("adrele!!"), key(termbox.KeyEsc))...)
 		f.Find(
 			tracks,
