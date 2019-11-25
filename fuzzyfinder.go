@@ -451,17 +451,23 @@ func (f *finder) readKey() error {
 }
 
 func (f *finder) filter() {
-	f.stateMu.Lock()
-	defer f.stateMu.Unlock()
-
+	f.stateMu.RLock()
 	if len(f.state.input) == 0 {
+		f.stateMu.RUnlock()
+		f.stateMu.Lock()
+		defer f.stateMu.Unlock()
 		f.state.matched = f.state.allMatched
 		return
 	}
 
 	// TODO: If input is not delete operation, it is able to
 	// reduce total iteration.
+	// FindAll may take a lot of time, so it is desired to use RLock to avoid goroutine blocking.
 	matchedItems := matching.FindAll(string(f.state.input), f.state.items, matching.WithMode(matching.Mode(f.opt.mode)))
+	f.stateMu.RUnlock()
+
+	f.stateMu.Lock()
+	defer f.stateMu.Unlock()
 	f.state.matched = matchedItems
 	if len(f.state.matched) == 0 {
 		f.state.cursorY = 0
