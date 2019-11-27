@@ -2,10 +2,15 @@ package scoring
 
 import (
 	"fmt"
+	"os"
 	"testing"
 )
 
 func Test_smithWaterman(t *testing.T) {
+	old := os.Getenv("DEBUG")
+	os.Setenv("DEBUG", "true")
+	defer os.Setenv("DEBUG", old)
+
 	cases := []struct {
 		s1, s2        string
 		expectedScore int
