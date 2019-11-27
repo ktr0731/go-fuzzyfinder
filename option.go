@@ -4,6 +4,7 @@ type opt struct {
 	mode        mode
 	previewFunc func(i, width, height int) string
 	multi       bool
+	hotReload   bool
 }
 
 type mode int
@@ -40,6 +41,14 @@ func WithMode(m mode) Option {
 func WithPreviewWindow(f func(i, width, height int) string) Option {
 	return func(o *opt) {
 		o.previewFunc = f
+	}
+}
+
+// WithHotReload reloads the passed slice automatically when some entries are appended.
+// The caller must pass a pointer of the slice instead of the slice itself.
+func WithHotReload() Option {
+	return func(o *opt) {
+		o.hotReload = true
 	}
 }
 

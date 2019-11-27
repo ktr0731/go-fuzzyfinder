@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"fmt"
 	"sync"
+	"time"
 
 	"github.com/gdamore/tcell/termbox"
 	runewidth "github.com/mattn/go-runewidth"
@@ -28,6 +29,8 @@ type TerminalMock struct {
 
 	resultMu sync.Mutex
 	result   string
+
+	sleepDuration time.Duration
 }
 
 // SetSize changes the pseudo-size of the window.
@@ -117,6 +120,8 @@ func (m *TerminalMock) pollEvent() termbox.Event {
 	}
 	e := m.events[0]
 	m.events = m.events[1:]
+	// Wait a moment for goroutine scheduling.
+	time.Sleep(m.sleepDuration)
 	return e
 }
 

@@ -3,13 +3,16 @@
 package fuzzyfinder_test
 
 import (
+	"context"
 	"flag"
 	"fmt"
 	"math/rand"
 	"os"
+	"sync"
 	"testing"
 
 	"github.com/gdamore/tcell/termbox"
+	fuzz "github.com/google/gofuzz"
 	fuzzyfinder "github.com/ktr0731/go-fuzzyfinder"
 )
 
@@ -64,6 +67,7 @@ var (
 
 var (
 	out       = flag.String("fuzzout", "fuzz.out", "fuzzing error cases")
+	hotReload = flag.Bool("hotreload", false, "enable hot-reloading")
 	numCases  = flag.Int("numCases", 30, "number of test cases")
 	numEvents = flag.Int("numEvents", 100, "number of events")
 )
@@ -112,21 +116,61 @@ func TestFuzz(t *testing.T) {
 				return
 			}()
 
+			var mu sync.Mutex
+			tracks := tracks
+
 			f, term := fuzzyfinder.NewWithMockedTerminal()
 			events = append(events, key(termbox.KeyEsc))
 			term.SetEvents(events...)
 
+			var (
+				iface interface{}
+				opts  []fuzzyfinder.Option
+			)
+			if *hotReload {
+				iface = &tracks
+				opts = append(opts, fuzzyfinder.WithHotReload())
+				ctx, cancel := context.WithCancel(context.Background())
+				defer cancel()
+				f := fuzz.New()
+				go func() {
+					for {
+						select {
+						case <-ctx.Done():
+							return
+						default:
+							var t track
+							f.Fuzz(&t.Name)
+							f.Fuzz(&t.Artist)
+							f.Fuzz(&t.Album)
+							mu.Lock()
+							tracks = append(tracks, &t)
+							mu.Unlock()
+						}
+					}
+				}()
+			} else {
+				iface = tracks
+			}
+
 			_, err := f.Find(
-				tracks,
+				iface,
 				func(i int) string {
+					mu.Lock()
+					defer mu.Unlock()
 					return tracks[i].Name
 				},
-				fuzzyfinder.WithPreviewWindow(func(i, width, height int) string {
-					if i == -1 {
-						return "not found"
-					}
-					return "Name: " + tracks[i].Name + "\nArtist: " + tracks[i].Artist
-				}),
+				append(
+					opts,
+					fuzzyfinder.WithPreviewWindow(func(i, width, height int) string {
+						if i == -1 {
+							return "not found"
+						}
+						mu.Lock()
+						defer mu.Unlock()
+						return "Name: " + tracks[i].Name + "\nArtist: " + tracks[i].Artist
+					}),
+				)...,
 			)
 			if err != fuzzyfinder.ErrAbort {
 				t.Fatalf("Find must return ErrAbort, but got '%s'", err)

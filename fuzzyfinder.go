@@ -4,6 +4,7 @@
 package fuzzyfinder
 
 import (
+	"context"
 	"flag"
 	"fmt"
 	"reflect"
@@ -33,7 +34,7 @@ var (
 type state struct {
 	items      []string           // All item names.
 	allMatched []matching.Matched // All items.
-	matched    []matching.Matched
+	matched    []matching.Matched // Matched items against to the input.
 
 	// x is the current index of the input line.
 	x int
@@ -63,10 +64,11 @@ type finder struct {
 	stateMu   sync.RWMutex
 	state     state
 	drawTimer *time.Timer
+	eventCh   chan struct{}
 	opt       *opt
 }
 
-func (f *finder) initFinder(items []string, matched []matching.Matched, opts []Option) error {
+func (f *finder) initFinder(items []string, matched []matching.Matched, opt opt) error {
 	if f.term == nil {
 		f.term = &termImpl{}
 	}
@@ -75,12 +77,7 @@ func (f *finder) initFinder(items []string, matched []matching.Matched, opts []O
 		return errors.Wrap(err, "failed to initialize termbox")
 	}
 
-	var opt opt
-	for _, o := range opts {
-		o(&opt)
-	}
 	f.opt = &opt
-
 	f.state = state{}
 
 	if opt.multi {
@@ -98,7 +95,17 @@ func (f *finder) initFinder(items []string, matched []matching.Matched, opts []O
 		})
 		f.drawTimer.Stop()
 	}
+	f.eventCh = make(chan struct{}, 30) // A large value
 	return nil
+}
+
+func (f *finder) updateItems(items []string, matched []matching.Matched) {
+	f.stateMu.Lock()
+	f.state.items = items
+	f.state.matched = matched
+	f.state.allMatched = matched
+	f.stateMu.Unlock()
+	f.eventCh <- struct{}{}
 }
 
 // _draw is used from draw with a timer.
@@ -291,7 +298,23 @@ func (f *finder) draw(d time.Duration) {
 // It returns ErrAbort if esc, CTRL-C or CTRL-D keys are inputted.
 // Also, it returns errEntered if enter key is inputted.
 func (f *finder) readKey() error {
-	switch e := f.term.pollEvent(); e.Type {
+	f.stateMu.RLock()
+	prevInputLen := len(f.state.input)
+	f.stateMu.RUnlock()
+	defer func() {
+		f.stateMu.RLock()
+		currentInputLen := len(f.state.input)
+		f.stateMu.RUnlock()
+		if prevInputLen != currentInputLen {
+			f.eventCh <- struct{}{}
+		}
+	}()
+
+	e := f.term.pollEvent()
+	f.stateMu.Lock()
+	defer f.stateMu.Unlock()
+
+	switch e.Type {
 	case termbox.EventKey:
 		switch e.Key {
 		case termbox.KeyEsc, termbox.KeyCtrlC, termbox.KeyCtrlD:
@@ -312,6 +335,7 @@ func (f *finder) readKey() error {
 				return nil
 			}
 			x := f.state.x
+
 			f.state.input = append(f.state.input[:x], f.state.input[x+1:]...)
 		case termbox.KeyEnter:
 			return errEntered
@@ -351,9 +375,6 @@ func (f *finder) readKey() error {
 			f.state.cursorX = 0
 			f.state.x = 0
 		case termbox.KeyArrowUp, termbox.KeyCtrlK, termbox.KeyCtrlP:
-			f.stateMu.Lock()
-			defer f.stateMu.Unlock()
-
 			if f.state.y+1 < len(f.state.matched) {
 				f.state.y++
 			}
@@ -425,24 +446,28 @@ func (f *finder) readKey() error {
 			f.state.cursorX = runewidth.StringWidth(string(f.state.input))
 			f.state.x = maxLineWidth
 		}
-
-		f.draw(200 * time.Millisecond)
 	}
 	return nil
 }
 
 func (f *finder) filter() {
-	f.stateMu.Lock()
-	defer f.stateMu.Unlock()
-
+	f.stateMu.RLock()
 	if len(f.state.input) == 0 {
+		f.stateMu.RUnlock()
+		f.stateMu.Lock()
+		defer f.stateMu.Unlock()
 		f.state.matched = f.state.allMatched
 		return
 	}
 
 	// TODO: If input is not delete operation, it is able to
 	// reduce total iteration.
+	// FindAll may take a lot of time, so it is desired to use RLock to avoid goroutine blocking.
 	matchedItems := matching.FindAll(string(f.state.input), f.state.items, matching.WithMode(matching.Mode(f.opt.mode)))
+	f.stateMu.RUnlock()
+
+	f.stateMu.Lock()
+	defer f.stateMu.Unlock()
 	f.state.matched = matchedItems
 	if len(f.state.matched) == 0 {
 		f.state.cursorY = 0
@@ -460,31 +485,88 @@ func (f *finder) filter() {
 }
 
 func (f *finder) find(slice interface{}, itemFunc func(i int) string, opts []Option) ([]int, error) {
-	rv := reflect.ValueOf(slice)
-	if rv.Kind() != reflect.Slice {
-		return nil, errors.Errorf("the first argument must be a slice, but got %T", slice)
-	}
 	if itemFunc == nil {
 		return nil, errors.New("itemFunc must not be nil")
 	}
 
-	sliceLen := rv.Len()
-	items := make([]string, sliceLen)
-	matched := make([]matching.Matched, sliceLen)
-	for i := 0; i < sliceLen; i++ {
-		items[i] = itemFunc(i)
-		matched[i] = matching.Matched{Idx: i}
+	var opt opt
+	for _, o := range opts {
+		o(&opt)
 	}
 
-	if err := f.initFinder(items, matched, opts); err != nil {
+	rv := reflect.ValueOf(slice)
+	if opt.hotReload && (rv.Kind() != reflect.Ptr || reflect.Indirect(rv).Kind() != reflect.Slice) {
+		return nil, errors.Errorf("the first argument must be a pointer to a slice, but got %T", slice)
+	} else if !opt.hotReload && rv.Kind() != reflect.Slice {
+		return nil, errors.Errorf("the first argument must be a slice, but got %T", slice)
+	}
+
+	makeItems := func(sliceLen int) ([]string, []matching.Matched) {
+		items := make([]string, sliceLen)
+		matched := make([]matching.Matched, sliceLen)
+		for i := 0; i < sliceLen; i++ {
+			items[i] = itemFunc(i)
+			matched[i] = matching.Matched{Idx: i}
+		}
+		return items, matched
+	}
+
+	var (
+		items   []string
+		matched []matching.Matched
+	)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	inited := make(chan struct{})
+	if opt.hotReload && rv.Kind() == reflect.Ptr {
+		rvv := reflect.Indirect(rv)
+		items, matched = makeItems(rvv.Len())
+
+		go func() {
+			<-inited
+
+			var prev int
+			for {
+				select {
+				case <-ctx.Done():
+					return
+				case <-time.After(30 * time.Millisecond):
+					curr := rvv.Len()
+					if prev != curr {
+						items, matched = makeItems(curr)
+						f.updateItems(items, matched)
+					}
+					prev = curr
+				}
+			}
+		}()
+	} else {
+		items, matched = makeItems(rv.Len())
+	}
+
+	if err := f.initFinder(items, matched, opt); err != nil {
 		return nil, errors.Wrap(err, "failed to initialize the fuzzy finder")
 	}
 	defer f.term.close()
 
+	close(inited)
+
+	go func() {
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case <-f.eventCh:
+				f.filter()
+				f.draw(0)
+			}
+		}
+	}()
+
 	for {
 		f.draw(10 * time.Millisecond)
-
-		prevInputLen := len(f.state.input)
 
 		err := f.readKey()
 		switch {
@@ -514,9 +596,6 @@ func (f *finder) find(slice interface{}, itemFunc func(i int) string, opts []Opt
 			return []int{f.state.matched[f.state.y].Idx}, nil
 		case err != nil:
 			return nil, errors.Wrap(err, "failed to read a key")
-		}
-		if prevInputLen != len(f.state.input) {
-			f.filter()
 		}
 	}
 }
