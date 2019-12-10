@@ -85,6 +85,8 @@ func TestFuzz(t *testing.T) {
 	}
 	defer f.Close()
 
+	fuzz := fuzz.New()
+
 	for i := 0; i < rand.Intn(*numCases)+10; i++ {
 		n := rand.Intn(*numEvents) + 10
 		events := make([]termbox.Event, n)
@@ -124,15 +126,18 @@ func TestFuzz(t *testing.T) {
 			term.SetEvents(events...)
 
 			var (
-				iface interface{}
-				opts  []fuzzyfinder.Option
+				iface     interface{}
+				promptStr string
 			)
+			fuzz.Fuzz(&promptStr)
+			opts := []fuzzyfinder.Option{
+				fuzzyfinder.WithPromptString(promptStr),
+			}
 			if *hotReload {
 				iface = &tracks
 				opts = append(opts, fuzzyfinder.WithHotReload())
 				ctx, cancel := context.WithCancel(context.Background())
 				defer cancel()
-				f := fuzz.New()
 				go func() {
 					for {
 						select {
@@ -140,9 +145,9 @@ func TestFuzz(t *testing.T) {
 							return
 						default:
 							var t track
-							f.Fuzz(&t.Name)
-							f.Fuzz(&t.Artist)
-							f.Fuzz(&t.Album)
+							fuzz.Fuzz(&t.Name)
+							fuzz.Fuzz(&t.Artist)
+							fuzz.Fuzz(&t.Album)
 							mu.Lock()
 							tracks = append(tracks, &t)
 							mu.Unlock()

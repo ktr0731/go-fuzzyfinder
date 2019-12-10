@@ -36,9 +36,9 @@ type state struct {
 	allMatched []matching.Matched // All items.
 	matched    []matching.Matched // Matched items against to the input.
 
-	// x is the current index of the input line.
+	// x is the current index of the prompt line.
 	x int
-	// cursorX is the position of input line.
+	// cursorX is the position of prompt line.
 	// Note that cursorX is the actual width of input runes.
 	cursorX int
 
@@ -118,16 +118,20 @@ func (f *finder) _draw() {
 		maxWidth = width/2 - 1
 	}
 
-	// input line
-	f.term.setCell(0, height-1, '>', termbox.ColorBlue, termbox.ColorDefault)
+	// prompt line
+	var promptLinePad int
+	for _, r := range []rune(f.opt.promptString) {
+		f.term.setCell(promptLinePad, height-1, r, termbox.ColorBlue, termbox.ColorDefault)
+		promptLinePad++
+	}
 	var r rune
 	var w int
 	for _, r = range f.state.input {
 		// Add a space between '>' and runes.
-		f.term.setCell(2+w, height-1, r, termbox.ColorDefault|termbox.AttrBold, termbox.ColorDefault)
+		f.term.setCell(promptLinePad+w, height-1, r, termbox.ColorDefault|termbox.AttrBold, termbox.ColorDefault)
 		w += runewidth.RuneWidth(r)
 	}
-	f.term.setCursor(2+f.state.cursorX, height-1)
+	f.term.setCursor(promptLinePad+f.state.cursorX, height-1)
 
 	// Number line
 	for i, r := range fmt.Sprintf("%d/%d", len(f.state.matched), len(f.state.items)) {
@@ -489,7 +493,7 @@ func (f *finder) find(slice interface{}, itemFunc func(i int) string, opts []Opt
 		return nil, errors.New("itemFunc must not be nil")
 	}
 
-	var opt opt
+	opt := defaultOption
 	for _, o := range opts {
 		o(&opt)
 	}

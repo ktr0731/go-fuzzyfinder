@@ -1,10 +1,11 @@
 package fuzzyfinder
 
 type opt struct {
-	mode        mode
-	previewFunc func(i, width, height int) string
-	multi       bool
-	hotReload   bool
+	mode         mode
+	previewFunc  func(i, width, height int) string
+	multi        bool
+	hotReload    bool
+	promptString string
 }
 
 type mode int
@@ -19,6 +20,10 @@ const (
 	// ModeCaseInsensitive enables a case-insensitive matching.
 	ModeCaseInsensitive
 )
+
+var defaultOption = opt{
+	promptString: "> ",
+}
 
 // Option represents available fuzzy-finding options.
 type Option func(*opt)
@@ -49,6 +54,13 @@ func WithPreviewWindow(f func(i, width, height int) string) Option {
 func WithHotReload() Option {
 	return func(o *opt) {
 		o.hotReload = true
+	}
+}
+
+// WithPromptString changes the prompt string. The default value is "> ".
+func WithPromptString(s string) Option {
+	return func(o *opt) {
+		o.promptString = s
 	}
 }
 
