@@ -5,6 +5,7 @@ package fuzzyfinder
 
 import (
 	"context"
+	"errors"
 	"flag"
 	"fmt"
 	"reflect"
@@ -18,7 +19,6 @@ import (
 	"github.com/gdamore/tcell/termbox"
 	"github.com/ktr0731/go-fuzzyfinder/matching"
 	runewidth "github.com/mattn/go-runewidth"
-	"github.com/pkg/errors"
 )
 
 var (
@@ -74,7 +74,7 @@ func (f *finder) initFinder(items []string, matched []matching.Matched, opt opt)
 	}
 
 	if err := f.term.init(); err != nil {
-		return errors.Wrap(err, "failed to initialize termbox")
+		return fmt.Errorf("failed to initialize termbox: %w", err)
 	}
 
 	f.opt = &opt
@@ -500,9 +500,9 @@ func (f *finder) find(slice interface{}, itemFunc func(i int) string, opts []Opt
 
 	rv := reflect.ValueOf(slice)
 	if opt.hotReload && (rv.Kind() != reflect.Ptr || reflect.Indirect(rv).Kind() != reflect.Slice) {
-		return nil, errors.Errorf("the first argument must be a pointer to a slice, but got %T", slice)
+		return nil, fmt.Errorf("the first argument must be a pointer to a slice, but got %T", slice)
 	} else if !opt.hotReload && rv.Kind() != reflect.Slice {
-		return nil, errors.Errorf("the first argument must be a slice, but got %T", slice)
+		return nil, fmt.Errorf("the first argument must be a slice, but got %T", slice)
 	}
 
 	makeItems := func(sliceLen int) ([]string, []matching.Matched) {
@@ -551,7 +551,7 @@ func (f *finder) find(slice interface{}, itemFunc func(i int) string, opts []Opt
 	}
 
 	if err := f.initFinder(items, matched, opt); err != nil {
-		return nil, errors.Wrap(err, "failed to initialize the fuzzy finder")
+		return nil, fmt.Errorf("failed to initialize the fuzzy finder: %w", err)
 	}
 	defer f.term.close()
 
@@ -574,9 +574,9 @@ func (f *finder) find(slice interface{}, itemFunc func(i int) string, opts []Opt
 
 		err := f.readKey()
 		switch {
-		case err == ErrAbort:
+		case errors.Is(err, ErrAbort):
 			return nil, ErrAbort
-		case err == errEntered:
+		case errors.Is(err, errEntered):
 			f.stateMu.RLock()
 			defer f.stateMu.RUnlock()
 
@@ -599,7 +599,7 @@ func (f *finder) find(slice interface{}, itemFunc func(i int) string, opts []Opt
 			}
 			return []int{f.state.matched[f.state.y].Idx}, nil
 		case err != nil:
-			return nil, errors.Wrap(err, "failed to read a key")
+			return nil, fmt.Errorf("failed to read a key: %w", err)
 		}
 	}
 }

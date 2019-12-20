@@ -1,6 +1,7 @@
 package fuzzyfinder_test
 
 import (
+	"errors"
 	"flag"
 	"io/ioutil"
 	"os"
@@ -158,7 +159,7 @@ func TestFind(t *testing.T) {
 					}),
 					fuzzyfinder.WithMode(fuzzyfinder.ModeCaseSensitive),
 				)
-				if err != fuzzyfinder.ErrAbort {
+				if !errors.Is(err, fuzzyfinder.ErrAbort) {
 					t.Fatalf("Find must return ErrAbort, but got '%s'", err)
 				}
 
@@ -195,7 +196,7 @@ func TestFind_hotReload(t *testing.T) {
 			fuzzyfinder.WithMode(fuzzyfinder.ModeCaseSensitive),
 			fuzzyfinder.WithHotReload(),
 		)
-		if err != fuzzyfinder.ErrAbort {
+		if !errors.Is(err, fuzzyfinder.ErrAbort) {
 			t.Fatalf("Find must return ErrAbort, but got '%s'", err)
 		}
 
@@ -290,7 +291,7 @@ func TestFindMulti(t *testing.T) {
 				}),
 			)
 			if c.abort {
-				if err != fuzzyfinder.ErrAbort {
+				if !errors.Is(err, fuzzyfinder.ErrAbort) {
 					t.Fatalf("Find must return ErrAbort, but got '%s'", err)
 				}
 				return
