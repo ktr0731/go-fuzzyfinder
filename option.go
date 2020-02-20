@@ -1,11 +1,16 @@
 package fuzzyfinder
 
+import (
+	"github.com/gdamore/tcell/termbox"
+)
+
 type opt struct {
 	mode         mode
 	previewFunc  func(i, width, height int) string
 	multi        bool
 	hotReload    bool
 	promptString string
+	promptColor  termbox.Attribute
 }
 
 type mode int
@@ -23,6 +28,7 @@ const (
 
 var defaultOption = opt{
 	promptString: "> ",
+	promptColor:  termbox.ColorBlue,
 }
 
 // Option represents available fuzzy-finding options.
@@ -61,6 +67,13 @@ func WithHotReload() Option {
 func WithPromptString(s string) Option {
 	return func(o *opt) {
 		o.promptString = s
+	}
+}
+
+// WithPromptString changes the prompt string. The default value is "> ".
+func WithPromptColor(c termbox.Attribute) Option {
+	return func(o *opt) {
+		o.promptColor = c
 	}
 }
 
