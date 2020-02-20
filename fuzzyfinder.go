@@ -121,7 +121,7 @@ func (f *finder) _draw() {
 	// prompt line
 	var promptLinePad int
 	for _, r := range []rune(f.opt.promptString) {
-		f.term.setCell(promptLinePad, height-1, r, opt.promptColor, termbox.ColorDefault)
+		f.term.setCell(promptLinePad, height-1, r, f.opt.promptColor, termbox.ColorDefault)
 		promptLinePad++
 	}
 	var r rune
