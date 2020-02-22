@@ -18,16 +18,16 @@ type cell struct {
 // TerminalMock is a mocked terminal for testing.
 // Most users should use it by calling UseMockedTerminal.
 type TerminalMock struct {
-	sizeMu        sync.Mutex
+	sizeMu        sync.RWMutex
 	width, height int
 
 	eventsMu sync.Mutex
 	events   []termbox.Event
 
-	cellsMu sync.Mutex
+	cellsMu sync.RWMutex
 	cells   []*cell
 
-	resultMu sync.Mutex
+	resultMu sync.RWMutex
 	result   string
 
 	sleepDuration time.Duration
@@ -56,8 +56,8 @@ func (m *TerminalMock) SetEvents(e ...termbox.Event) {
 // GetResult returns a flushed string that is displayed to the actual terminal.
 // It contains all escape sequences such that ANSI escape code.
 func (m *TerminalMock) GetResult() string {
-	m.resultMu.Lock()
-	defer m.resultMu.Unlock()
+	m.resultMu.RLock()
+	defer m.resultMu.RUnlock()
 	return m.result
 }
 
@@ -66,8 +66,8 @@ func (m *TerminalMock) init() error {
 }
 
 func (m *TerminalMock) size() (width int, height int) {
-	m.sizeMu.Lock()
-	defer m.sizeMu.Unlock()
+	m.sizeMu.RLock()
+	defer m.sizeMu.RUnlock()
 	return m.width, m.height
 }
 
@@ -77,8 +77,8 @@ func (m *TerminalMock) clear(fg termbox.Attribute, bg termbox.Attribute) error {
 }
 
 func (m *TerminalMock) setCell(x int, y int, ch rune, fg termbox.Attribute, bg termbox.Attribute) {
-	m.sizeMu.Lock()
-	defer m.sizeMu.Unlock()
+	m.sizeMu.RLock()
+	defer m.sizeMu.RUnlock()
 	m.cellsMu.Lock()
 	defer m.cellsMu.Unlock()
 
@@ -92,8 +92,8 @@ func (m *TerminalMock) setCell(x int, y int, ch rune, fg termbox.Attribute, bg t
 }
 
 func (m *TerminalMock) setCursor(x int, y int) {
-	m.sizeMu.Lock()
-	defer m.sizeMu.Unlock()
+	m.sizeMu.RLock()
+	defer m.sizeMu.RUnlock()
 	m.cellsMu.Lock()
 	defer m.cellsMu.Unlock()
 	if x < 0 || x >= m.width {
@@ -109,7 +109,6 @@ func (m *TerminalMock) setCursor(x int, y int) {
 		// Cursor on a rune.
 		m.cells[y*m.width+x].bg = termbox.ColorWhite
 	}
-	return
 }
 
 func (m *TerminalMock) pollEvent() termbox.Event {
@@ -127,8 +126,7 @@ func (m *TerminalMock) pollEvent() termbox.Event {
 
 // flush displays all items with formatted layout.
 func (m *TerminalMock) flush() error {
-	m.cellsMu.Lock()
-	defer m.cellsMu.Unlock()
+	m.cellsMu.RLock()
 
 	var s string
 	for j := 0; j < m.height; j++ {
@@ -158,7 +156,7 @@ func (m *TerminalMock) flush() error {
 				}
 				s += string(c.ch)
 				rw := runewidth.RuneWidth(c.ch)
-				if rw != 1 {
+				if rw != 0 {
 					i += rw - 1
 				}
 			}
@@ -166,7 +164,11 @@ func (m *TerminalMock) flush() error {
 		s += "\n"
 	}
 	s += "\x1b\x5b\x6d" // Reset previous color.
+
+	m.cellsMu.RUnlock()
+	m.cellsMu.Lock()
 	m.cells = make([]*cell, m.width*m.height)
+	m.cellsMu.Unlock()
 
 	m.resultMu.Lock()
 	defer m.resultMu.Unlock()
