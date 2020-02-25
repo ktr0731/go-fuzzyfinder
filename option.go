@@ -70,7 +70,7 @@ func WithPromptString(s string) Option {
 	}
 }
 
-// WithPromptString changes the prompt string. The default value is "> ".
+// WithPromptColor changes the prompt color. The default value is termbox.ColorBlue.
 func WithPromptColor(c termbox.Attribute) Option {
 	return func(o *opt) {
 		o.promptColor = c
