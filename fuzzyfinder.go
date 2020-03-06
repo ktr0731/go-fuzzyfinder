@@ -163,7 +163,13 @@ func (f *finder) _draw() {
 
 		var posIdx int
 		w := 2
-		for j, r := range []rune(f.state.items[m.Idx]) {
+		var item string
+		if f.opt.itemViewFunc != nil {
+			item = f.opt.itemViewFunc(m.Idx)
+		} else {
+			item = f.state.items[m.Idx]
+		}
+		for j, r := range []rune(item) {
 			fg := termbox.ColorDefault
 			bg := termbox.ColorDefault
 			// Highlight selected strings.

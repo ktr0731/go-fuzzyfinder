@@ -3,6 +3,7 @@ package fuzzyfinder
 type opt struct {
 	mode         mode
 	previewFunc  func(i, width, height int) string
+	itemViewFunc func(i int) string
 	multi        bool
 	hotReload    bool
 	promptString string
@@ -61,6 +62,15 @@ func WithHotReload() Option {
 func WithPromptString(s string) Option {
 	return func(o *opt) {
 		o.promptString = s
+	}
+}
+
+// WithItemView allows to add additional information to item entries
+func WithItemView(f func(i int) string) Option {
+	return func(o *opt) {
+		{
+			o.itemViewFunc = f
+		}
 	}
 }
 
