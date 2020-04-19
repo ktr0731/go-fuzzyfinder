@@ -11,9 +11,9 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/gdamore/tcell/termbox"
 	fuzz "github.com/google/gofuzz"
 	fuzzyfinder "github.com/ktr0731/go-fuzzyfinder"
+	"github.com/nsf/termbox-go"
 )
 
 type fuzzKey struct {
