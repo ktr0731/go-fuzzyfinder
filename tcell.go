@@ -1,7 +1,7 @@
 package fuzzyfinder
 
 import (
-	"github.com/gdamore/tcell/termbox"
+	"github.com/nsf/termbox-go"
 )
 
 // terminal is an abstraction for mocking termbox-go.

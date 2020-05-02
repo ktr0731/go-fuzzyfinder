@@ -6,8 +6,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/gdamore/tcell/termbox"
 	runewidth "github.com/mattn/go-runewidth"
+	"github.com/nsf/termbox-go"
 )
 
 type cell struct {

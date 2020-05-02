@@ -3,8 +3,8 @@ package fuzzyfinder
 import (
 	"testing"
 
-	"github.com/gdamore/tcell/termbox"
 	"github.com/google/go-cmp/cmp"
+	"github.com/nsf/termbox-go"
 )
 
 func Test_parseAttr(t *testing.T) {
