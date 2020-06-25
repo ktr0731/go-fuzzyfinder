@@ -6,6 +6,7 @@ type opt struct {
 	multi        bool
 	hotReload    bool
 	promptString string
+	defaultIndex int
 }
 
 type mode int
@@ -23,6 +24,7 @@ const (
 
 var defaultOption = opt{
 	promptString: "> ",
+	defaultIndex: -1,
 }
 
 // Option represents available fuzzy-finding options.
@@ -61,6 +63,13 @@ func WithHotReload() Option {
 func WithPromptString(s string) Option {
 	return func(o *opt) {
 		o.promptString = s
+	}
+}
+
+// WithDefaultIndex initiate the finder with a default value in the slice.
+func WithDefaultIndex(i int) Option {
+	return func(o *opt) {
+		o.defaultIndex = i
 	}
 }
 

@@ -84,6 +84,11 @@ func (f *finder) initFinder(items []string, matched []matching.Matched, opt opt)
 		f.state.selection = map[int]int{}
 	}
 
+	if opt.defaultIndex >= 0 {
+		f.state.y = opt.defaultIndex
+		f.state.cursorY = opt.defaultIndex
+	}
+
 	f.state.items = items
 	f.state.matched = matched
 	f.state.allMatched = matched
