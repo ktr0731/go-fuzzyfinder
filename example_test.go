@@ -43,7 +43,7 @@ func ExampleFind_previewWindow() {
 			}
 			s := fmt.Sprintf("%s is selected", slice[i].name)
 			// As an example of using width, if the window width is less than
-			// the length of s, we returns the name directly.
+			// the length of s, we return the name directly.
 			if width < len([]rune(s)) {
 				return slice[i].name
 			}

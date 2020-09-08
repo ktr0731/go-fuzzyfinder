@@ -34,7 +34,7 @@ var (
 type state struct {
 	items      []string           // All item names.
 	allMatched []matching.Matched // All items.
-	matched    []matching.Matched // Matched items against to the input.
+	matched    []matching.Matched // Matched items against the input.
 
 	// x is the current index of the prompt line.
 	x int
@@ -43,7 +43,7 @@ type state struct {
 	cursorX int
 
 	// The current index of filtered items (matched).
-	// The initial state is 0.
+	// The initial value is 0.
 	y int
 	// cursorY is the position of item line.
 	// Note that the max size of cursorY depends on max height.
@@ -55,7 +55,7 @@ type state struct {
 	// an index of an item (Matched.Idx). Each value represents the position
 	// which it is selected.
 	selection map[int]int
-	// selectionIdx hods the next index, which is used to a selection's value.
+	// selectionIdx holds the next index, which is used to a selection's value.
 	selectionIdx int
 }
 
@@ -429,7 +429,7 @@ func (f *finder) readKey() error {
 			}
 		}
 	case termbox.EventResize:
-		// To get actual window size, clear all buffers.
+		// To get the actual window size, clear all buffers.
 		// See termbox.Clear's documentation for more details.
 		f.term.clear(termbox.ColorDefault, termbox.ColorDefault)
 
@@ -604,16 +604,16 @@ func (f *finder) find(slice interface{}, itemFunc func(i int) string, opts []Opt
 	}
 }
 
-// Find displays a UI that provides fuzzy finding against to the passed slice.
-// The argument slice must be a slice type. If it is not a slice, Find returns
+// Find displays a UI that provides fuzzy finding against the provided slice.
+// The argument slice must be of a slice type. If not, Find returns
 // an error. itemFunc is called by the length of slice. previewFunc is called
-// when the cursor which points the current selected item is changed.
+// when the cursor which points to the currently selected item is changed.
 // If itemFunc is nil, Find returns an error.
 //
-// itemFunc receives an argument i. It is the index of the item currently
+// itemFunc receives an argument i, which is the index of the item currently
 // selected.
 //
-// Find returns ErrAbort if a call of Find is finished with no selection.
+// Find returns ErrAbort if a call to Find is finished with no selection.
 func Find(slice interface{}, itemFunc func(i int) string, opts ...Option) (int, error) {
 	return defaultFinder.Find(slice, itemFunc, opts...)
 }
@@ -626,8 +626,8 @@ func (f *finder) Find(slice interface{}, itemFunc func(i int) string, opts ...Op
 	return res[0], err
 }
 
-// FindMulti is nearly same as the Find. The only one difference point from
-// Find is the user can select multiple items at once by tab key.
+// FindMulti is nearly the same as Find. The only difference from Find is that
+// the user can select multiple items at once, by using the tab key.
 func FindMulti(slice interface{}, itemFunc func(i int) string, opts ...Option) ([]int, error) {
 	return defaultFinder.FindMulti(slice, itemFunc, opts...)
 }
