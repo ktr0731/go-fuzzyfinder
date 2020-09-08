@@ -604,7 +604,7 @@ func (f *finder) find(slice interface{}, itemFunc func(i int) string, opts []Opt
 	}
 }
 
-// Find displays an UI that provides fuzzy finding against the provided slice.
+// Find displays a UI that provides fuzzy finding against the provided slice.
 // The argument slice must be of a slice type. If not, Find returns
 // an error. itemFunc is called by the length of slice. previewFunc is called
 // when the cursor which points to the currently selected item is changed.
