@@ -5,14 +5,14 @@ import (
 )
 
 type terminal interface {
-	screen() tcell.Screen
+	Screen() tcell.Screen
 }
 
 // termImpl is the implementation for termbox-go.
 type termImpl struct {
-	s tcell.Screen
+	screen tcell.Screen
 }
 
-func (t *termImpl) screen() tcell.Screen {
-	return t.s
+func (t *termImpl) Screen() tcell.Screen {
+	return t.screen
 }

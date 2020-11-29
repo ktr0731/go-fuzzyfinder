@@ -7,6 +7,7 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"log"
 	"reflect"
 	"sort"
 	"strings"
@@ -75,12 +76,11 @@ func (f *finder) initFinder(items []string, matched []matching.Matched, opt opt)
 			return errors.Wrap(err, "failed to new screen")
 		}
 		f.term = &termImpl{
-			s: screen,
+			screen: screen,
 		}
-	}
-
-	if err := f.term.(*termImpl).s.Init(); err != nil {
-		return errors.Wrap(err, "failed to initialize termbox")
+		if err := f.term.Screen().Init(); err != nil {
+			return errors.Wrap(err, "failed to initialize termbox")
+		}
 	}
 
 	f.opt = &opt
@@ -97,7 +97,7 @@ func (f *finder) initFinder(items []string, matched []matching.Matched, opt opt)
 		f.drawTimer = time.AfterFunc(0, func() {
 			f._draw()
 			f._drawPreview()
-			f.term.screen().Show()
+			f.term.Screen().Show()
 		})
 		f.drawTimer.Stop()
 	}
@@ -116,8 +116,8 @@ func (f *finder) updateItems(items []string, matched []matching.Matched) {
 
 // _draw is used from draw with a timer.
 func (f *finder) _draw() {
-	width, height := f.term.screen().Size()
-	f.term.screen().Clear()
+	width, height := f.term.Screen().Size()
+	f.term.Screen().Clear()
 
 	maxWidth := width
 	if f.opt.previewFunc != nil {
@@ -131,7 +131,7 @@ func (f *finder) _draw() {
 		Background(tcell.ColorDefault)
 
 	for _, r := range []rune(f.opt.promptString) {
-		f.term.screen().SetContent(promptLinePad, height-1, r, nil, style)
+		f.term.Screen().SetContent(promptLinePad, height-1, r, nil, style)
 		promptLinePad++
 	}
 	var r rune
@@ -142,10 +142,10 @@ func (f *finder) _draw() {
 		Bold(true)
 	for _, r = range f.state.input {
 		// Add a space between '>' and runes.
-		f.term.screen().SetContent(promptLinePad+w, height-1, r, nil, style)
+		f.term.Screen().SetContent(promptLinePad+w, height-1, r, nil, style)
 		w += runewidth.RuneWidth(r)
 	}
-	f.term.screen().ShowCursor(promptLinePad+f.state.cursorX, height-1)
+	f.term.Screen().ShowCursor(promptLinePad+f.state.cursorX, height-1)
 
 	style = tcell.StyleDefault.
 		Foreground(tcell.ColorYellow).
@@ -153,7 +153,7 @@ func (f *finder) _draw() {
 
 	// Number line
 	for i, r := range fmt.Sprintf("%d/%d", len(f.state.matched), len(f.state.items)) {
-		f.term.screen().SetContent(2+i, height-2, r, nil, style)
+		f.term.Screen().SetContent(2+i, height-2, r, nil, style)
 	}
 
 	// Item lines
@@ -173,13 +173,13 @@ func (f *finder) _draw() {
 				Foreground(tcell.ColorRed).
 				Background(tcell.ColorBlack)
 
-			f.term.screen().SetContent(0, height-3-i, '>', nil, style)
-			f.term.screen().SetContent(1, height-3-i, ' ', nil, style)
+			f.term.Screen().SetContent(0, height-3-i, '>', nil, style)
+			f.term.Screen().SetContent(1, height-3-i, ' ', nil, style)
 		}
 
 		if f.opt.multi {
 			if _, ok := f.state.selection[m.Idx]; ok {
-				f.term.screen().SetContent(1, height-3-i, '>', nil, style)
+				f.term.Screen().SetContent(1, height-3-i, '>', nil, style)
 			}
 		}
 
@@ -194,13 +194,8 @@ func (f *finder) _draw() {
 				from, to := m.Pos[0], m.Pos[1]
 				if !(from == -1 && to == -1) && (from <= j && j <= to) {
 					if unicode.ToLower(f.state.input[posIdx]) == unicode.ToLower(r) {
-						currentFg, _, _ := style.Decompose()
-						currentFgR, currentFgG, currentFgB := currentFg.RGB()
-						mixColor := tcell.ColorGreen
-						mixR, mixG, mixB := mixColor.RGB()
-						newFg := tcell.NewRGBColor((currentFgR+mixR)/2, (currentFgG+mixG)/2, (currentFgB+mixB)/2)
 						style = tcell.StyleDefault.
-							Foreground(newFg).
+							Foreground(tcell.ColorGreen).
 							Background(tcell.ColorDefault)
 						posIdx++
 					}
@@ -208,7 +203,7 @@ func (f *finder) _draw() {
 			}
 			if i == f.state.cursorY {
 				style = tcell.StyleDefault.
-					Foreground(tcell.ColorYellow).
+					Foreground(tcell.ColorDarkCyan).
 					Bold(true).
 					Background(tcell.ColorBlack)
 			}
@@ -216,12 +211,12 @@ func (f *finder) _draw() {
 			rw := runewidth.RuneWidth(r)
 			// Shorten item cells.
 			if w+rw+2 > maxWidth {
-				f.term.screen().SetContent(w, height-3-i, '.', nil, style)
-				f.term.screen().SetContent(w+1, height-3-i, '.', nil, style)
+				f.term.Screen().SetContent(w, height-3-i, '.', nil, style)
+				f.term.Screen().SetContent(w+1, height-3-i, '.', nil, style)
 				w += 2
 				break
 			} else {
-				f.term.screen().SetContent(w, height-3-i, r, nil, style)
+				f.term.Screen().SetContent(w, height-3-i, r, nil, style)
 				w += rw
 			}
 		}
@@ -233,7 +228,7 @@ func (f *finder) _drawPreview() {
 		return
 	}
 
-	width, height := f.term.screen().Size()
+	width, height := f.term.Screen().Size()
 	var idx int
 	if len(f.state.matched) == 0 {
 		idx = -1
@@ -261,7 +256,7 @@ func (f *finder) _drawPreview() {
 		} else {
 			r = '─'
 		}
-		f.term.screen().SetContent(i, 0, r, nil, style)
+		f.term.Screen().SetContent(i, 0, r, nil, style)
 	}
 	// bottom line
 	style = tcell.StyleDefault.
@@ -277,7 +272,7 @@ func (f *finder) _drawPreview() {
 		} else {
 			r = '─'
 		}
-		f.term.screen().SetContent(i, height-1, r, nil, style)
+		f.term.Screen().SetContent(i, height-1, r, nil, style)
 	}
 	// Start with h=1 to exclude each corner rune.
 	const vline = '│'
@@ -291,14 +286,14 @@ func (f *finder) _drawPreview() {
 				style = tcell.StyleDefault.
 					Foreground(tcell.ColorBlack).
 					Background(tcell.ColorDefault)
-				f.term.screen().SetContent(i, h, vline, nil, style)
+				f.term.Screen().SetContent(i, h, vline, nil, style)
 				w += wvline
 			// Right vertical line.
 			case i == width-1:
 				style = tcell.StyleDefault.
 					Foreground(tcell.ColorBlack).
 					Background(tcell.ColorDefault)
-				f.term.screen().SetContent(i, h, vline, nil, style)
+				f.term.Screen().SetContent(i, h, vline, nil, style)
 				w += wvline
 			// Spaces between left and right vertical lines.
 			case w == width/2+wvline, w == width-1-wvline:
@@ -306,7 +301,7 @@ func (f *finder) _drawPreview() {
 					Foreground(tcell.ColorDefault).
 					Background(tcell.ColorDefault)
 
-				f.term.screen().SetContent(w, h, ' ', nil, style)
+				f.term.Screen().SetContent(w, h, ' ', nil, style)
 				w++
 			default: // Preview text
 				if h-1 >= len(prevLines) {
@@ -325,14 +320,14 @@ func (f *finder) _drawPreview() {
 						Foreground(tcell.ColorBlack).
 						Background(tcell.ColorDefault)
 
-					f.term.screen().SetContent(w, h, '.', nil, style)
-					f.term.screen().SetContent(w+1, h, '.', nil, style)
+					f.term.Screen().SetContent(w, h, '.', nil, style)
+					f.term.Screen().SetContent(w+1, h, '.', nil, style)
 
 					w += 2
 					continue
 				}
 
-				f.term.screen().SetContent(w, h, l[j], nil, style)
+				f.term.Screen().SetContent(w, h, l[j], nil, style)
 				w += rw
 			}
 		}
@@ -347,7 +342,7 @@ func (f *finder) draw(d time.Duration) {
 		// Don't use goroutine scheduling.
 		f._draw()
 		f._drawPreview()
-		f.term.screen().Show()
+		f.term.Screen().Show()
 	} else {
 		f.drawTimer.Reset(d)
 	}
@@ -369,7 +364,7 @@ func (f *finder) readKey() error {
 		}
 	}()
 
-	e := f.term.screen().PollEvent()
+	e := f.term.Screen().PollEvent()
 	f.stateMu.Lock()
 	defer f.stateMu.Unlock()
 
@@ -437,7 +432,7 @@ func (f *finder) readKey() error {
 			if f.state.y+1 < len(f.state.matched) {
 				f.state.y++
 			}
-			_, height := f.term.screen().Size()
+			_, height := f.term.Screen().Size()
 			if f.state.cursorY+1 < height-2 && f.state.cursorY+1 < len(f.state.matched) {
 				f.state.cursorY++
 			}
@@ -467,7 +462,7 @@ func (f *finder) readKey() error {
 			}
 		default:
 			if e.Rune() != 0 {
-				width, _ := f.term.screen().Size()
+				width, _ := f.term.Screen().Size()
 				maxLineWidth := width - 2 - 1
 				if len(f.state.input)+1 > maxLineWidth {
 					// Discard inputted rune.
@@ -483,9 +478,9 @@ func (f *finder) readKey() error {
 	case *tcell.EventResize:
 		// To get the actual window size, clear all buffers.
 		// See termbox.Clear's documentation for more details.
-		f.term.screen().Clear()
+		f.term.Screen().Clear()
 
-		width, height := f.term.screen().Size()
+		width, height := f.term.Screen().Size()
 		itemAreaHeight := height - 2 - 1
 		if itemAreaHeight >= 0 && f.state.cursorY > itemAreaHeight {
 			f.state.cursorY = itemAreaHeight
@@ -605,7 +600,7 @@ func (f *finder) find(slice interface{}, itemFunc func(i int) string, opts []Opt
 	if err := f.initFinder(items, matched, opt); err != nil {
 		return nil, errors.Wrap(err, "failed to initialize the fuzzy finder")
 	}
-	defer f.term.screen().Fini()
+	//	defer f.term.Screen().Fini()
 
 	close(inited)
 
