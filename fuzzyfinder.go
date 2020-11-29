@@ -7,7 +7,6 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"log"
 	"reflect"
 	"sort"
 	"strings"
@@ -178,6 +177,10 @@ func (f *finder) _draw() {
 		}
 
 		if f.opt.multi {
+			style = tcell.StyleDefault.
+				Foreground(tcell.ColorRed).
+				Background(tcell.ColorBlack)
+
 			if _, ok := f.state.selection[m.Idx]; ok {
 				f.term.Screen().SetContent(1, height-3-i, '>', nil, style)
 			}
@@ -190,6 +193,7 @@ func (f *finder) _draw() {
 				Foreground(tcell.ColorDefault).
 				Background(tcell.ColorDefault)
 			// Highlight selected strings.
+			hasHighlighted := false
 			if posIdx < len(f.state.input) {
 				from, to := m.Pos[0], m.Pos[1]
 				if !(from == -1 && to == -1) && (from <= j && j <= to) {
@@ -197,15 +201,23 @@ func (f *finder) _draw() {
 						style = tcell.StyleDefault.
 							Foreground(tcell.ColorGreen).
 							Background(tcell.ColorDefault)
+						hasHighlighted = true
 						posIdx++
 					}
 				}
 			}
 			if i == f.state.cursorY {
-				style = tcell.StyleDefault.
-					Foreground(tcell.ColorDarkCyan).
-					Bold(true).
-					Background(tcell.ColorBlack)
+				if hasHighlighted {
+					style = tcell.StyleDefault.
+						Foreground(tcell.ColorDarkCyan).
+						Bold(true).
+						Background(tcell.ColorBlack)
+				} else {
+					style = tcell.StyleDefault.
+						Foreground(tcell.ColorYellow).
+						Bold(true).
+						Background(tcell.ColorBlack)
+				}
 			}
 
 			rw := runewidth.RuneWidth(r)
@@ -317,7 +329,7 @@ func (f *finder) _drawPreview() {
 				rw := runewidth.RuneWidth(l[j])
 				if w+rw > width-1-2 {
 					style = tcell.StyleDefault.
-						Foreground(tcell.ColorBlack).
+						Foreground(tcell.ColorDefault).
 						Background(tcell.ColorDefault)
 
 					f.term.Screen().SetContent(w, h, '.', nil, style)
@@ -327,6 +339,9 @@ func (f *finder) _drawPreview() {
 					continue
 				}
 
+				style = tcell.StyleDefault.
+					Foreground(tcell.ColorDefault).
+					Background(tcell.ColorDefault)
 				f.term.Screen().SetContent(w, h, l[j], nil, style)
 				w += rw
 			}
