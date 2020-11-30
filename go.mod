@@ -7,6 +7,7 @@ require (
 	github.com/mattn/go-runewidth v0.0.9
 	github.com/nsf/termbox-go v0.0.0-20200418040025-38ba6e5628f1
 	github.com/pkg/errors v0.9.1
+	golang.org/x/tools v0.0.0-20201125231158-b5590deeca9b // indirect
 )
 
 go 1.13
