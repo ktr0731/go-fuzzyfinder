@@ -179,9 +179,7 @@ func TestFind(t *testing.T) {
 		}...)...)},
 	}
 
-	var seqMutex sync.Mutex
 	for name, c := range cases {
-		seqMutex.Lock()
 		t.Run(name, func(t *testing.T) {
 			events := c.events
 
@@ -207,12 +205,12 @@ func TestFind(t *testing.T) {
 					t.Fatalf("Find must return ErrAbort, but got '%s'", err)
 				}
 
+				time.Sleep(4000 * time.Millisecond)
 				res := term.GetResult()
 				term.Screen().Fini()
 				return res
 			})
 		})
-		seqMutex.Unlock()
 	}
 }
 
@@ -247,6 +245,7 @@ func TestFind_hotReload(t *testing.T) {
 			t.Fatalf("Find must return ErrAbort, but got '%s'", err)
 		}
 
+		time.Sleep(2000 * time.Millisecond)
 		res := term.GetResult()
 		term.Screen().Fini()
 		return res
@@ -258,8 +257,16 @@ func TestFind_enter(t *testing.T) {
 		events   []tcell.Event
 		expected int
 	}{
-		"initial":                      {events: keys(input{tcell.KeyTab, rune(tcell.KeyTab), tcell.ModNone}), expected: 0},
-		"mode smart to case-sensitive": {events: runes("CHI"), expected: 7},
+		"initial": {events: keys(input{tcell.KeyTab, rune(tcell.KeyTab), tcell.ModNone}), expected: 0},
+		"mode smart to case-sensitive": {events: append(runes("JI"), keys([]input{
+			{tcell.KeyTab, rune(tcell.KeyTab), tcell.ModNone}, // tab earn time for filter
+			{tcell.KeyTab, rune(tcell.KeyTab), tcell.ModNone},
+			{tcell.KeyTab, rune(tcell.KeyTab), tcell.ModNone},
+			{tcell.KeyTab, rune(tcell.KeyTab), tcell.ModNone},
+			{tcell.KeyTab, rune(tcell.KeyTab), tcell.ModNone},
+			{tcell.KeyTab, rune(tcell.KeyTab), tcell.ModNone},
+			{tcell.KeyTab, rune(tcell.KeyTab), tcell.ModNone},
+		}...)...), expected: 7},
 	}
 
 	for name, c := range cases {
@@ -277,6 +284,7 @@ func TestFind_enter(t *testing.T) {
 					return tracks[i].Name
 				},
 			)
+
 			if err != nil {
 				t.Fatalf("Find must not return an error, but got '%s'", err)
 			}
