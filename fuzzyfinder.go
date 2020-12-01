@@ -639,6 +639,10 @@ func (f *finder) find(slice interface{}, itemFunc func(i int) string, opts []Opt
 		f.draw(10 * time.Millisecond)
 
 		err := f.readKey()
+		// hack for earning time to filter exec
+		if isInTesting() {
+			time.Sleep(50 * time.Millisecond)
+		}
 		switch {
 		case err == ErrAbort:
 			return nil, ErrAbort
