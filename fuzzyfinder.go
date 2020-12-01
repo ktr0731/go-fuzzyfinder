@@ -496,8 +496,6 @@ func (f *finder) readKey() error {
 			}
 		}
 	case *tcell.EventResize:
-		// To get the actual window size, clear all buffers.
-		// See termbox.Clear's documentation for more details.
 		f.term.Screen().Clear()
 
 		width, height := f.term.Screen().Size()

@@ -110,12 +110,10 @@ func (f *finder) UseMockedTerminal() *TerminalMock {
 	return m
 }
 
-// parseAttr parses an attribute of termbox
 // as an escape sequence.
-// parseAttr doesn't support output modes othar than color256 in termbox-go.
 func parseAttr(fg, bg *tcell.Color, attr tcell.AttrMask) string {
 	if attr == tcell.AttrInvalid {
-		panic(fmt.Sprintf("invalid color code: %d", attr))
+		panic("invalid attribute")
 	}
 
 	var buf bytes.Buffer
