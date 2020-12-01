@@ -205,7 +205,6 @@ func TestFind(t *testing.T) {
 					t.Fatalf("Find must return ErrAbort, but got '%s'", err)
 				}
 
-				time.Sleep(4000 * time.Millisecond)
 				res := term.GetResult()
 				term.Screen().Fini()
 				return res
@@ -245,7 +244,6 @@ func TestFind_hotReload(t *testing.T) {
 			t.Fatalf("Find must return ErrAbort, but got '%s'", err)
 		}
 
-		time.Sleep(2000 * time.Millisecond)
 		res := term.GetResult()
 		term.Screen().Fini()
 		return res

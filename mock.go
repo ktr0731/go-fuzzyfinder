@@ -44,6 +44,8 @@ func (t *TerminalMock) GetResult() string {
 
 	setCursor()
 
+	t.resultMu.Lock()
+
 	cells, width, height := t.screen.GetContents()
 
 	for h := 0; h < height; h++ {
@@ -76,6 +78,9 @@ func (t *TerminalMock) GetResult() string {
 		s += "\n"
 	}
 	s += "\x1b\x5b\x6d" // Reset previous color.
+
+	t.resultMu.Unlock()
+
 	return s
 }
 

@@ -30,7 +30,7 @@ jobs:
       run: go build
 
     - name: Test
-      run: go test -p 1 -v -coverpkg ./... -covermode atomic -coverprofile coverage.txt -tags fuzz -numCases 10 -numEvents 10 ./...
+      run: go test -v -coverpkg ./... -covermode atomic -coverprofile coverage.txt -tags fuzz -numCases 10 -numEvents 10 ./...
 
     - name: Upload coverage to Codecov
       uses: codecov/codecov-action@v1
