@@ -402,10 +402,10 @@ func (f *finder) readKey() error {
 			if f.state.x == 0 {
 				return nil
 			}
-			// Remove the latest input rune.
-			f.state.cursorX -= runewidth.RuneWidth(f.state.input[len(f.state.input)-1])
+			x := f.state.x
+			f.state.cursorX -= runewidth.RuneWidth(f.state.input[x-1])
 			f.state.x--
-			f.state.input = f.state.input[0 : len(f.state.input)-1]
+			f.state.input = append(f.state.input[:x-1], f.state.input[x:]...)
 		case tcell.KeyDelete:
 			if f.state.x == len(f.state.input) {
 				return nil
