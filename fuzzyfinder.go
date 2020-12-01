@@ -640,10 +640,6 @@ func (f *finder) find(slice interface{}, itemFunc func(i int) string, opts []Opt
 		err := f.readKey()
 		switch {
 		case err == ErrAbort:
-			if !isInTesting() {
-				f.term.Screen().Fini()
-			}
-
 			return nil, ErrAbort
 		case err == errEntered:
 			f.stateMu.RLock()
@@ -689,6 +685,10 @@ func Find(slice interface{}, itemFunc func(i int) string, opts ...Option) (int, 
 
 func (f *finder) Find(slice interface{}, itemFunc func(i int) string, opts ...Option) (int, error) {
 	res, err := f.find(slice, itemFunc, opts)
+	if !isInTesting() {
+		f.term.Screen().Fini()
+	}
+
 	if err != nil {
 		return 0, err
 	}
@@ -703,7 +703,11 @@ func FindMulti(slice interface{}, itemFunc func(i int) string, opts ...Option) (
 
 func (f *finder) FindMulti(slice interface{}, itemFunc func(i int) string, opts ...Option) ([]int, error) {
 	opts = append(opts, withMulti())
-	return f.find(slice, itemFunc, opts)
+	res, err := f.find(slice, itemFunc, opts)
+	if !isInTesting() {
+		f.term.Screen().Fini()
+	}
+	return res, err
 }
 
 func isInTesting() bool {
