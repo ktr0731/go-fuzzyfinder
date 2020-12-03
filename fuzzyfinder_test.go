@@ -206,7 +206,7 @@ func TestFind(t *testing.T) {
 				}
 
 				res := term.GetResult()
-				term.Screen().Fini()
+				term.Fini()
 				return res
 			})
 		})
@@ -245,7 +245,7 @@ func TestFind_hotReload(t *testing.T) {
 		}
 
 		res := term.GetResult()
-		term.Screen().Fini()
+		term.Fini()
 		return res
 	})
 }

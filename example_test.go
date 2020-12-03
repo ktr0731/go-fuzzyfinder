@@ -71,17 +71,11 @@ func ExampleFindMulti() {
 func ExampleTerminalMock() {
 	// Initialize a mocked terminal.
 	term := fuzzyfinder.UseMockedTerminal()
-	screen, ok := term.Screen().(tcell.SimulationScreen)
-	if !ok {
-		panic("screen type unmatch")
-	}
-	// Set the window size and events.
-	screen.SetSize(60, 10)
 	keys := "foo"
 	for _, r := range keys {
-		screen.InjectKey(tcell.KeyRune, r, tcell.ModNone)
+		term.InjectKey(tcell.KeyRune, r, tcell.ModNone)
 	}
-	screen.InjectKey(tcell.KeyEsc, rune(tcell.KeyEsc), tcell.ModNone)
+	term.InjectKey(tcell.KeyEsc, rune(tcell.KeyEsc), tcell.ModNone)
 
 	slice := []string{"foo", "bar", "baz"}
 	fuzzyfinder.Find(slice, func(i int) string { return slice[i] })

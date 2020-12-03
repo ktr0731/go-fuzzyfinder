@@ -4,14 +4,12 @@ import (
 	"github.com/gdamore/tcell/v2"
 )
 
+type screen tcell.Screen
+
 type terminal interface {
-	Screen() tcell.Screen
+	screen
 }
 
 type termImpl struct {
-	screen tcell.Screen
-}
-
-func (t *termImpl) Screen() tcell.Screen {
-	return t.screen
+	screen
 }

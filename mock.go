@@ -9,10 +9,12 @@ import (
 	runewidth "github.com/mattn/go-runewidth"
 )
 
+type simScreen tcell.SimulationScreen
+
 // TerminalMock is a mocked terminal for testing.
 // Most users should use it by calling UseMockedTerminal.
 type TerminalMock struct {
-	screen   tcell.SimulationScreen
+	simScreen
 	resultMu sync.RWMutex
 	result   string
 }
@@ -23,30 +25,26 @@ func UseMockedTerminal() *TerminalMock {
 	return defaultFinder.UseMockedTerminal()
 }
 
-func (t *TerminalMock) Screen() tcell.Screen {
-	return t.screen
-}
-
 func (t *TerminalMock) GetResult() string {
 	var s string
 
 	// set cursor for snapshot test
 	setCursor := func() {
-		cursorX, cursorY, _ := t.screen.GetCursor()
-		mainc, _, _, _ := t.screen.GetContent(cursorX, cursorY)
+		cursorX, cursorY, _ := t.GetCursor()
+		mainc, _, _, _ := t.GetContent(cursorX, cursorY)
 		if mainc == ' ' {
-			t.screen.SetContent(cursorX, cursorY, '\u2588', nil, tcell.StyleDefault.Foreground(tcell.ColorWhite).Background(tcell.ColorDefault))
+			t.SetContent(cursorX, cursorY, '\u2588', nil, tcell.StyleDefault.Foreground(tcell.ColorWhite).Background(tcell.ColorDefault))
 		} else {
-			t.screen.SetContent(cursorX, cursorY, mainc, nil, tcell.StyleDefault.Background(tcell.ColorWhite))
+			t.SetContent(cursorX, cursorY, mainc, nil, tcell.StyleDefault.Background(tcell.ColorWhite))
 		}
-		t.screen.Show()
+		t.Show()
 	}
 
 	setCursor()
 
 	t.resultMu.Lock()
 
-	cells, width, height := t.screen.GetContents()
+	cells, width, height := t.GetContents()
 
 	for h := 0; h < height; h++ {
 		prevFg, prevBg := tcell.ColorDefault, tcell.ColorDefault
@@ -89,11 +87,11 @@ func (t *TerminalMock) SetEvents(events ...tcell.Event) {
 		switch event.(type) {
 		case *tcell.EventKey:
 			ek := event.(*tcell.EventKey)
-			t.screen.InjectKey(ek.Key(), ek.Rune(), ek.Modifiers())
+			t.InjectKey(ek.Key(), ek.Rune(), ek.Modifiers())
 		case *tcell.EventResize:
 			er := event.(*tcell.EventResize)
 			w, h := er.Size()
-			t.screen.SetSize(w, h)
+			t.SetSize(w, h)
 		}
 	}
 }
@@ -104,7 +102,7 @@ func (f *finder) UseMockedTerminal() *TerminalMock {
 		panic(err)
 	}
 	m := &TerminalMock{
-		screen: screen,
+		simScreen: screen,
 	}
 	f.term = m
 	return m
