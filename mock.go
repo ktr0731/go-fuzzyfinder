@@ -25,6 +25,7 @@ func UseMockedTerminal() *TerminalMock {
 	return defaultFinder.UseMockedTerminal()
 }
 
+// GetResult returns the result showed in screen
 func (t *TerminalMock) GetResult() string {
 	var s string
 
@@ -108,7 +109,7 @@ func (f *finder) UseMockedTerminal() *TerminalMock {
 	return m
 }
 
-// as an escape sequence.
+// parseAttr parses color and attribute for test
 func parseAttr(fg, bg *tcell.Color, attr tcell.AttrMask) string {
 	if attr == tcell.AttrInvalid {
 		panic("invalid attribute")
