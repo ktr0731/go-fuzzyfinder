@@ -674,16 +674,17 @@ func (f *finder) find(slice interface{}, itemFunc func(i int) string, opts []Opt
 
 // This method avoid tcell bug https://github.com/gdamore/tcell/issues/194
 // Aditional EOL event is sent to ensure, consequent events, are correctly handled
-func sendExtraEventFix() {
+func sendExtraEventFix() error {
 	kb, err := keybd_event.NewKeyBonding()
 	if err != nil {
-		panic(err)
+		return err
 	}
 	kb.SetKeys(keybd_event.VK_ENTER)
 	err = kb.Launching()
 	if err != nil {
-		panic(err)
+		return err
 	}
+	return nil
 }
 
 // Find displays a UI that provides fuzzy finding against the provided slice.
@@ -704,7 +705,9 @@ func (f *finder) Find(slice interface{}, itemFunc func(i int) string, opts ...Op
 	res, err := f.find(slice, itemFunc, opts)
 	if !isInTesting() {
 		f.term.Fini()
-		sendExtraEventFix()
+		if err := sendExtraEventFix(); err != nil {
+			return 0, err
+		}
 	}
 
 	if err != nil {
@@ -724,7 +727,9 @@ func (f *finder) FindMulti(slice interface{}, itemFunc func(i int) string, opts 
 	res, err := f.find(slice, itemFunc, opts)
 	if !isInTesting() {
 		f.term.Fini()
-		sendExtraEventFix()
+		if err := sendExtraEventFix(); err != nil {
+			return nil, err
+		}
 	}
 	return res, err
 }
