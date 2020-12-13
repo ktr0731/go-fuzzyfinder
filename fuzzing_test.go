@@ -93,8 +93,8 @@ func TestFuzz(t *testing.T) {
 		return b
 	}
 
-	// number of events in tcell.SimulationScreen is limited 10
-	for i := 0; i < rand.Intn(min(*numCases, 10)); i++ {
+	for i := 0; i < rand.Intn(*numCases)+10; i++ {
+		// number of events in tcell.SimulationScreen is limited 10
 		n := rand.Intn(min(*numEvents, 10))
 		events := make([]tcell.Event, n)
 		for i := 0; i < n; i++ {
