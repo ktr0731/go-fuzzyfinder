@@ -37,34 +37,28 @@ type TerminalMock struct {
 	sleepDuration time.Duration
 }
 
-func (m *TerminalMock) IsTermboxVer() bool {
-	return m.simScreen == nil
-}
-
 // SetSize changes the pseudo-size of the window.
 // Note that SetSize resets added cells.
 func (m *TerminalMock) SetSize(w, h int) {
-	if m.IsTermboxVer() {
-		m.sizeMu.Lock()
-		defer m.sizeMu.Unlock()
-		m.cellsMu.Lock()
-		defer m.cellsMu.Unlock()
-		m.width = w
-		m.height = h
-		m.cells = make([]*cell, w*h)
-	} else {
-		m.simScreen.SetSize(w, h)
-	}
+	m.sizeMu.Lock()
+	defer m.sizeMu.Unlock()
+	m.cellsMu.Lock()
+	defer m.cellsMu.Unlock()
+	m.width = w
+	m.height = h
+	m.cells = make([]*cell, w*h)
+}
+
+func (m *TerminalMock) SetSizeV2(w, h int) {
+	m.simScreen.SetSize(w, h)
 }
 
 // SetEvents sets all events, which are fetched by pollEvent.
 // A user of this must set the EscKey event at the end.
 func (m *TerminalMock) SetEvents(events ...termbox.Event) {
-	if m.IsTermboxVer() {
-		m.eventsMu.Lock()
-		defer m.eventsMu.Unlock()
-		m.events = events
-	}
+	m.eventsMu.Lock()
+	defer m.eventsMu.Unlock()
+	m.events = events
 }
 
 func (m *TerminalMock) SetEventsV2(events ...tcell.Event) {
@@ -84,66 +78,66 @@ func (m *TerminalMock) SetEventsV2(events ...tcell.Event) {
 // GetResult returns a flushed string that is displayed to the actual terminal.
 // It contains all escape sequences such that ANSI escape code.
 func (m *TerminalMock) GetResult() string {
-	if m.IsTermboxVer() {
-		m.resultMu.RLock()
-		defer m.resultMu.RUnlock()
-		return m.result
-	} else {
-		var s string
+	m.resultMu.RLock()
+	defer m.resultMu.RUnlock()
+	return m.result
+}
 
-		// set cursor for snapshot test
-		setCursor := func() {
-			cursorX, cursorY, _ := m.simScreen.GetCursor()
-			mainc, _, _, _ := m.simScreen.GetContent(cursorX, cursorY)
-			if mainc == ' ' {
-				m.simScreen.SetContent(cursorX, cursorY, '\u2588', nil, tcell.StyleDefault.Foreground(tcell.ColorWhite).Background(tcell.ColorDefault))
-			} else {
-				m.simScreen.SetContent(cursorX, cursorY, mainc, nil, tcell.StyleDefault.Background(tcell.ColorWhite))
-			}
-			m.simScreen.Show()
+func (m *TerminalMock) GetResultV2() string {
+	var s string
+
+	// set cursor for snapshot test
+	setCursor := func() {
+		cursorX, cursorY, _ := m.simScreen.GetCursor()
+		mainc, _, _, _ := m.simScreen.GetContent(cursorX, cursorY)
+		if mainc == ' ' {
+			m.simScreen.SetContent(cursorX, cursorY, '\u2588', nil, tcell.StyleDefault.Foreground(tcell.ColorWhite).Background(tcell.ColorDefault))
+		} else {
+			m.simScreen.SetContent(cursorX, cursorY, mainc, nil, tcell.StyleDefault.Background(tcell.ColorWhite))
 		}
-
-		setCursor()
-
-		m.resultMu.Lock()
-
-		cells, width, height := m.simScreen.GetContents()
-
-		for h := 0; h < height; h++ {
-			prevFg, prevBg := tcell.ColorDefault, tcell.ColorDefault
-			for w := 0; w < width; w++ {
-				cell := cells[h*width+w]
-				fg, bg, attr := cell.Style.Decompose()
-				var fgReset bool
-				if fg != prevFg {
-					s += "\x1b\x5b\x6d" // Reset previous color.
-					s += parseAttrV2(&fg, nil, attr)
-					prevFg = fg
-					prevBg = tcell.ColorDefault
-					fgReset = true
-				}
-				if bg != prevBg {
-					if !fgReset {
-						s += "\x1b\x5b\x6d" // Reset previous color.
-						prevFg = tcell.ColorDefault
-					}
-					s += parseAttrV2(nil, &bg, attr)
-					prevBg = bg
-				}
-				s += string(cell.Runes[:])
-				rw := runewidth.RuneWidth(cell.Runes[0])
-				if rw != 0 {
-					w += rw - 1
-				}
-			}
-			s += "\n"
-		}
-		s += "\x1b\x5b\x6d" // Reset previous color.
-
-		m.resultMu.Unlock()
-
-		return s
+		m.simScreen.Show()
 	}
+
+	setCursor()
+
+	m.resultMu.Lock()
+
+	cells, width, height := m.simScreen.GetContents()
+
+	for h := 0; h < height; h++ {
+		prevFg, prevBg := tcell.ColorDefault, tcell.ColorDefault
+		for w := 0; w < width; w++ {
+			cell := cells[h*width+w]
+			fg, bg, attr := cell.Style.Decompose()
+			var fgReset bool
+			if fg != prevFg {
+				s += "\x1b\x5b\x6d" // Reset previous color.
+				s += parseAttrV2(&fg, nil, attr)
+				prevFg = fg
+				prevBg = tcell.ColorDefault
+				fgReset = true
+			}
+			if bg != prevBg {
+				if !fgReset {
+					s += "\x1b\x5b\x6d" // Reset previous color.
+					prevFg = tcell.ColorDefault
+				}
+				s += parseAttrV2(nil, &bg, attr)
+				prevBg = bg
+			}
+			s += string(cell.Runes[:])
+			rw := runewidth.RuneWidth(cell.Runes[0])
+			if rw != 0 {
+				w += rw - 1
+			}
+		}
+		s += "\n"
+	}
+	s += "\x1b\x5b\x6d" // Reset previous color.
+
+	m.resultMu.Unlock()
+
+	return s
 }
 
 func (m *TerminalMock) init() error {
@@ -268,6 +262,10 @@ func (m *TerminalMock) close() {}
 // this package to a mocked one.
 func UseMockedTerminal() *TerminalMock {
 	return defaultFinder.UseMockedTerminal()
+}
+
+func UseMockedTerminalV2() *TerminalMock {
+	return defaultFinder.UseMockedTerminalV2()
 }
 
 func (f *finder) UseMockedTerminal() *TerminalMock {

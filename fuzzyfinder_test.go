@@ -185,10 +185,7 @@ func TestFind(t *testing.T) {
 
 			f, term := fuzzyfinder.NewWithMockedTerminalV2()
 			events = append(events, key(input{tcell.KeyEsc, rune(tcell.KeyEsc), tcell.ModNone}))
-
-			if !term.IsTermboxVer() {
-				term.SetEventsV2(events...)
-			}
+			term.SetEventsV2(events...)
 
 			assertWithGolden(t, func(t *testing.T) string {
 				_, err := f.Find(
@@ -208,7 +205,7 @@ func TestFind(t *testing.T) {
 					t.Fatalf("Find must return ErrAbort, but got '%s'", err)
 				}
 
-				res := term.GetResult()
+				res := term.GetResultV2()
 				return res
 			})
 		})
@@ -218,10 +215,7 @@ func TestFind(t *testing.T) {
 func TestFind_hotReload(t *testing.T) {
 	f, term := fuzzyfinder.NewWithMockedTerminalV2()
 	events := append(runes("adrena"), keys(input{tcell.KeyEsc, rune(tcell.KeyEsc), tcell.ModNone})...)
-
-	if !term.IsTermboxVer() {
-		term.SetEventsV2(events...)
-	}
+	term.SetEventsV2(events...)
 
 	var mu sync.Mutex
 	assertWithGolden(t, func(t *testing.T) string {
@@ -249,7 +243,7 @@ func TestFind_hotReload(t *testing.T) {
 			t.Fatalf("Find must return ErrAbort, but got '%s'", err)
 		}
 
-		res := term.GetResult()
+		res := term.GetResultV2()
 		return res
 	})
 }
@@ -270,10 +264,7 @@ func TestFind_enter(t *testing.T) {
 
 			f, term := fuzzyfinder.NewWithMockedTerminalV2()
 			events = append(events, key(input{tcell.KeyEnter, rune(tcell.KeyEnter), tcell.ModNone}))
-
-			if !term.IsTermboxVer() {
-				term.SetEventsV2(events...)
-			}
+			term.SetEventsV2(events...)
 
 			idx, err := f.Find(
 				tracks,
@@ -343,10 +334,8 @@ func TestFindMulti(t *testing.T) {
 
 			f, term := fuzzyfinder.NewWithMockedTerminalV2()
 			events = append(events, key(input{tcell.KeyEnter, rune(tcell.KeyEnter), tcell.ModNone}))
+			term.SetEventsV2(events...)
 
-			if !term.IsTermboxVer() {
-				term.SetEventsV2(events...)
-			}
 			idxs, err := f.FindMulti(
 				tracks,
 				func(i int) string {
@@ -383,9 +372,7 @@ func BenchmarkFind(b *testing.B) {
 		for i := 0; i < b.N; i++ {
 			f, term := fuzzyfinder.NewWithMockedTerminalV2()
 			events := append(runes("adrele!!"), key(input{tcell.KeyEsc, rune(tcell.KeyEsc), tcell.ModNone}))
-			if !term.IsTermboxVer() {
-				term.SetEventsV2(events...)
-			}
+			term.SetEventsV2(events...)
 
 			f.Find(
 				tracks,
@@ -408,10 +395,8 @@ func BenchmarkFind(b *testing.B) {
 		for i := 0; i < b.N; i++ {
 			f, term := fuzzyfinder.NewWithMockedTerminalV2()
 			events := append(runes("adrele!!"), key(input{tcell.KeyEsc, rune(tcell.KeyEsc), tcell.ModNone}))
+			term.SetEventsV2(events...)
 
-			if !term.IsTermboxVer() {
-				term.SetEventsV2(events...)
-			}
 			f.Find(
 				&tracks,
 				func(i int) string {

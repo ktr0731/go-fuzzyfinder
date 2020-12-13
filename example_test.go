@@ -70,7 +70,7 @@ func ExampleFindMulti() {
 
 func ExampleTerminalMock() {
 	// Initialize a mocked terminal.
-	term := fuzzyfinder.UseMockedTerminal()
+	term := fuzzyfinder.UseMockedTerminalV2()
 	keys := "foo"
 	for _, r := range keys {
 		term.InjectKey(tcell.KeyRune, r, tcell.ModNone)
@@ -84,6 +84,6 @@ func ExampleTerminalMock() {
 	// We can test it by the golden files testing pattern.
 	//
 	// See https://speakerdeck.com/mitchellh/advanced-testing-with-go?slide=19
-	result := term.GetResult()
+	result := term.GetResultV2()
 	ioutil.WriteFile("ui.out", []byte(result), 0644)
 }

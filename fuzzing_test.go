@@ -130,9 +130,8 @@ func TestFuzz(t *testing.T) {
 			f, term := fuzzyfinder.NewWithMockedTerminalV2()
 			events = append(events, key(input{tcell.KeyEsc, rune(tcell.KeyEsc), tcell.ModNone}))
 
-			if !term.IsTermboxVer() {
-				term.SetEventsV2(events...)
-			}
+			term.SetEventsV2(events...)
+
 			var (
 				iface     interface{}
 				promptStr string
