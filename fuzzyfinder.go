@@ -619,6 +619,10 @@ func (f *finder) find(slice interface{}, itemFunc func(i int) string, opts []Opt
 		return nil, errors.Wrap(err, "failed to initialize the fuzzy finder")
 	}
 
+	if !isInTesting() {
+		defer f.term.Fini()
+	}
+
 	close(inited)
 
 	go func() {
@@ -704,7 +708,6 @@ func Find(slice interface{}, itemFunc func(i int) string, opts ...Option) (int, 
 func (f *finder) Find(slice interface{}, itemFunc func(i int) string, opts ...Option) (int, error) {
 	res, err := f.find(slice, itemFunc, opts)
 	if !isInTesting() {
-		f.term.Fini()
 		if err := sendExtraEventFix(); err != nil {
 			return 0, err
 		}
@@ -726,7 +729,6 @@ func (f *finder) FindMulti(slice interface{}, itemFunc func(i int) string, opts 
 	opts = append(opts, withMulti())
 	res, err := f.find(slice, itemFunc, opts)
 	if !isInTesting() {
-		f.term.Fini()
 		if err := sendExtraEventFix(); err != nil {
 			return nil, err
 		}
