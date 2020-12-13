@@ -677,7 +677,7 @@ func (f *finder) find(slice interface{}, itemFunc func(i int) string, opts []Opt
 }
 
 // This method avoid tcell bug https://github.com/gdamore/tcell/issues/194
-// Aditional EOL event is sent to ensure, consequent events, are correctly handled
+// Additional EOL event is sent to ensure, consequent events, are correctly handled.
 func sendExtraEventFix() error {
 	kb, err := keybd_event.NewKeyBonding()
 	if err != nil {
