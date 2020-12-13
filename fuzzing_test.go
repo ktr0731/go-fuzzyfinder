@@ -67,7 +67,7 @@ var (
 var (
 	out       = flag.String("fuzzout", "fuzz.out", "fuzzing error cases")
 	hotReload = flag.Bool("hotreload", false, "enable hot-reloading")
-	numCases  = flag.Int("numCases", 10, "number of test cases")
+	numCases  = flag.Int("numCases", 30, "number of test cases")
 	numEvents = flag.Int("numEvents", 10, "number of events")
 )
 
@@ -127,7 +127,7 @@ func TestFuzz(t *testing.T) {
 			var mu sync.Mutex
 			tracks := tracks
 
-			f, term := fuzzyfinder.NewWithMockedTerminal()
+			f, term := fuzzyfinder.NewWithMockedTerminalV2()
 			events = append(events, key(input{tcell.KeyEsc, rune(tcell.KeyEsc), tcell.ModNone}))
 
 			if !term.IsTermboxVer() {
