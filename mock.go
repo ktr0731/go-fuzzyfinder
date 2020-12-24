@@ -35,11 +35,16 @@ type TerminalMock struct {
 	result   string
 
 	sleepDuration time.Duration
+	v2            bool
 }
 
 // SetSize changes the pseudo-size of the window.
 // Note that SetSize resets added cells.
 func (m *TerminalMock) SetSize(w, h int) {
+	if m.v2 {
+		m.simScreen.SetSize(w, h)
+		return
+	}
 	m.sizeMu.Lock()
 	defer m.sizeMu.Unlock()
 	m.cellsMu.Lock()
@@ -49,10 +54,7 @@ func (m *TerminalMock) SetSize(w, h int) {
 	m.cells = make([]*cell, w*h)
 }
 
-func (m *TerminalMock) SetSizeV2(w, h int) {
-	m.simScreen.SetSize(w, h)
-}
-
+// Deprecated: Use SetEventsV2
 // SetEvents sets all events, which are fetched by pollEvent.
 // A user of this must set the EscKey event at the end.
 func (m *TerminalMock) SetEvents(events ...termbox.Event) {
@@ -61,6 +63,8 @@ func (m *TerminalMock) SetEvents(events ...termbox.Event) {
 	m.events = events
 }
 
+// SetEventsV2 sets all events, which are fetched by pollEvent.
+// A user of this must set the EscKey event at the end.
 func (m *TerminalMock) SetEventsV2(events ...tcell.Event) {
 	for _, event := range events {
 		switch event.(type) {
@@ -78,12 +82,12 @@ func (m *TerminalMock) SetEventsV2(events ...tcell.Event) {
 // GetResult returns a flushed string that is displayed to the actual terminal.
 // It contains all escape sequences such that ANSI escape code.
 func (m *TerminalMock) GetResult() string {
-	m.resultMu.RLock()
-	defer m.resultMu.RUnlock()
-	return m.result
-}
+	if !m.v2 {
+		m.resultMu.RLock()
+		defer m.resultMu.RUnlock()
+		return m.result
+	}
 
-func (m *TerminalMock) GetResultV2() string {
 	var s string
 
 	// set cursor for snapshot test
@@ -264,6 +268,8 @@ func UseMockedTerminal() *TerminalMock {
 	return defaultFinder.UseMockedTerminal()
 }
 
+// UseMockedTerminalV2 switches the terminal, which is used from
+// this package to a mocked one.
 func UseMockedTerminalV2() *TerminalMock {
 	return defaultFinder.UseMockedTerminalV2()
 }
@@ -281,6 +287,7 @@ func (f *finder) UseMockedTerminalV2() *TerminalMock {
 	}
 	m := &TerminalMock{
 		simScreen: screen,
+		v2:        true,
 	}
 	f.term = m
 	return m
@@ -328,7 +335,7 @@ func parseAttr(attr termbox.Attribute, isFg bool) string {
 	return buf.String()
 }
 
-// parseAttrV2 parses color and attribute for test
+// parseAttrV2 parses color and attribute for testing
 func parseAttrV2(fg, bg *tcell.Color, attr tcell.AttrMask) string {
 	if attr == tcell.AttrInvalid {
 		panic("invalid attribute")
