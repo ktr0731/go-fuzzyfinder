@@ -127,7 +127,7 @@ func TestFuzz(t *testing.T) {
 			var mu sync.Mutex
 			tracks := tracks
 
-			f, term := fuzzyfinder.NewWithMockedTerminalV2()
+			f, term := fuzzyfinder.NewWithMockedTerminal()
 			events = append(events, key(input{tcell.KeyEsc, rune(tcell.KeyEsc), tcell.ModNone}))
 
 			term.SetEventsV2(events...)

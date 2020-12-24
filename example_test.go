@@ -84,6 +84,6 @@ func ExampleTerminalMock() {
 	// We can test it by the golden files testing pattern.
 	//
 	// See https://speakerdeck.com/mitchellh/advanced-testing-with-go?slide=19
-	result := term.GetResultV2()
+	result := term.GetResult()
 	ioutil.WriteFile("ui.out", []byte(result), 0644)
 }

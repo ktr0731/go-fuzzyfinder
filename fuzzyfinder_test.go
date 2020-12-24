@@ -183,7 +183,7 @@ func TestFind(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			events := c.events
 
-			f, term := fuzzyfinder.NewWithMockedTerminalV2()
+			f, term := fuzzyfinder.NewWithMockedTerminal()
 			events = append(events, key(input{tcell.KeyEsc, rune(tcell.KeyEsc), tcell.ModNone}))
 			term.SetEventsV2(events...)
 
@@ -205,7 +205,7 @@ func TestFind(t *testing.T) {
 					t.Fatalf("Find must return ErrAbort, but got '%s'", err)
 				}
 
-				res := term.GetResultV2()
+				res := term.GetResult()
 				return res
 			})
 		})
@@ -213,7 +213,7 @@ func TestFind(t *testing.T) {
 }
 
 func TestFind_hotReload(t *testing.T) {
-	f, term := fuzzyfinder.NewWithMockedTerminalV2()
+	f, term := fuzzyfinder.NewWithMockedTerminal()
 	events := append(runes("adrena"), keys(input{tcell.KeyEsc, rune(tcell.KeyEsc), tcell.ModNone})...)
 	term.SetEventsV2(events...)
 
@@ -243,7 +243,7 @@ func TestFind_hotReload(t *testing.T) {
 			t.Fatalf("Find must return ErrAbort, but got '%s'", err)
 		}
 
-		res := term.GetResultV2()
+		res := term.GetResult()
 		return res
 	})
 }
@@ -262,7 +262,7 @@ func TestFind_enter(t *testing.T) {
 			c := c
 			events := c.events
 
-			f, term := fuzzyfinder.NewWithMockedTerminalV2()
+			f, term := fuzzyfinder.NewWithMockedTerminal()
 			events = append(events, key(input{tcell.KeyEnter, rune(tcell.KeyEnter), tcell.ModNone}))
 			term.SetEventsV2(events...)
 
@@ -332,7 +332,7 @@ func TestFindMulti(t *testing.T) {
 			c := c
 			events := c.events
 
-			f, term := fuzzyfinder.NewWithMockedTerminalV2()
+			f, term := fuzzyfinder.NewWithMockedTerminal()
 			events = append(events, key(input{tcell.KeyEnter, rune(tcell.KeyEnter), tcell.ModNone}))
 			term.SetEventsV2(events...)
 
@@ -370,7 +370,7 @@ func BenchmarkFind(b *testing.B) {
 		b.ReportAllocs()
 		b.ResetTimer()
 		for i := 0; i < b.N; i++ {
-			f, term := fuzzyfinder.NewWithMockedTerminalV2()
+			f, term := fuzzyfinder.NewWithMockedTerminal()
 			events := append(runes("adrele!!"), key(input{tcell.KeyEsc, rune(tcell.KeyEsc), tcell.ModNone}))
 			term.SetEventsV2(events...)
 
@@ -393,7 +393,7 @@ func BenchmarkFind(b *testing.B) {
 		b.ReportAllocs()
 		b.ResetTimer()
 		for i := 0; i < b.N; i++ {
-			f, term := fuzzyfinder.NewWithMockedTerminalV2()
+			f, term := fuzzyfinder.NewWithMockedTerminal()
 			events := append(runes("adrele!!"), key(input{tcell.KeyEsc, rune(tcell.KeyEsc), tcell.ModNone}))
 			term.SetEventsV2(events...)
 
