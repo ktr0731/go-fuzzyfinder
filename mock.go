@@ -67,12 +67,12 @@ func (m *TerminalMock) SetEvents(events ...termbox.Event) {
 // A user of this must set the EscKey event at the end.
 func (m *TerminalMock) SetEventsV2(events ...tcell.Event) {
 	for _, event := range events {
-		switch event.(type) {
+		switch event := event.(type) {
 		case *tcell.EventKey:
-			ek := event.(*tcell.EventKey)
+			ek := event
 			m.simScreen.InjectKey(ek.Key(), ek.Rune(), ek.Modifiers())
 		case *tcell.EventResize:
-			er := event.(*tcell.EventResize)
+			er := event
 			w, h := er.Size()
 			m.simScreen.SetSize(w, h)
 		}
@@ -129,7 +129,7 @@ func (m *TerminalMock) GetResult() string {
 				s += parseAttrV2(nil, &bg, attr)
 				prevBg = bg
 			}
-			s += string(cell.Runes[:])
+			s += string(cell.Runes)
 			rw := runewidth.RuneWidth(cell.Runes[0])
 			if rw != 0 {
 				w += rw - 1
@@ -208,7 +208,7 @@ func (m *TerminalMock) pollEvent() termbox.Event {
 }
 
 // flush displays all items with formatted layout.
-func (m *TerminalMock) flush() error {
+func (m *TerminalMock) flush() {
 	m.cellsMu.RLock()
 
 	var s string
@@ -255,9 +255,8 @@ func (m *TerminalMock) flush() error {
 
 	m.resultMu.Lock()
 	defer m.resultMu.Unlock()
-	m.result = s
 
-	return nil
+	m.result = s
 }
 
 func (m *TerminalMock) close() {}
@@ -335,7 +334,7 @@ func parseAttr(attr termbox.Attribute, isFg bool) string {
 	return buf.String()
 }
 
-// parseAttrV2 parses color and attribute for testing
+// parseAttrV2 parses color and attribute for testing.
 func parseAttrV2(fg, bg *tcell.Color, attr tcell.AttrMask) string {
 	if attr == tcell.AttrInvalid {
 		panic("invalid attribute")

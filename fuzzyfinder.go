@@ -127,6 +127,7 @@ func (f *finder) _draw() {
 	// prompt line
 	var promptLinePad int
 
+	//nolint:staticcheck
 	for _, r := range []rune(f.opt.promptString) {
 		style := tcell.StyleDefault.
 			Foreground(tcell.ColorBlue).
@@ -228,7 +229,6 @@ func (f *finder) _draw() {
 			if w+rw+2 > maxWidth {
 				f.term.SetContent(w, height-3-i, '.', nil, style)
 				f.term.SetContent(w+1, height-3-i, '.', nil, style)
-				w += 2
 				break
 			} else {
 				f.term.SetContent(w, height-3-i, r, nil, style)
@@ -260,11 +260,12 @@ func (f *finder) _drawPreview() {
 	// top line
 	for i := width / 2; i < width; i++ {
 		var r rune
-		if i == width/2 {
+		switch {
+		case i == width/2:
 			r = '┌'
-		} else if i == width-1 {
+		case i == width-1:
 			r = '┐'
-		} else {
+		default:
 			r = '─'
 		}
 
@@ -277,11 +278,12 @@ func (f *finder) _drawPreview() {
 	// bottom line
 	for i := width / 2; i < width; i++ {
 		var r rune
-		if i == width/2 {
+		switch {
+		case i == width/2:
 			r = '└'
-		} else if i == width-1 {
+		case i == width-1:
 			r = '┘'
-		} else {
+		default:
 			r = '─'
 		}
 
@@ -575,7 +577,7 @@ func (f *finder) find(slice interface{}, itemFunc func(i int) string, opts []Opt
 		matched := make([]matching.Matched, sliceLen)
 		for i := 0; i < sliceLen; i++ {
 			items[i] = itemFunc(i)
-			matched[i] = matching.Matched{Idx: i}
+			matched[i] = matching.Matched{Idx: i} //nolint:exhaustivestruct
 		}
 		return items, matched
 	}
@@ -646,9 +648,9 @@ func (f *finder) find(slice interface{}, itemFunc func(i int) string, opts []Opt
 			time.Sleep(50 * time.Millisecond)
 		}
 		switch {
-		case err == ErrAbort:
+		case errors.Is(err, ErrAbort):
 			return nil, ErrAbort
-		case err == errEntered:
+		case errors.Is(err, errEntered):
 			f.stateMu.RLock()
 			defer f.stateMu.RUnlock()
 

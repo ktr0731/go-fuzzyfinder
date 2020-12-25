@@ -32,7 +32,7 @@ func ExampleFind_previewWindow() {
 		{"id2", "bar"},
 		{"id3", "baz"},
 	}
-	fuzzyfinder.Find(
+	idx, _ := fuzzyfinder.Find(
 		slice,
 		func(i int) string {
 			return fmt.Sprintf("[%s] %s", slice[i].id, slice[i].name)
@@ -49,6 +49,7 @@ func ExampleFind_previewWindow() {
 			}
 			return s
 		}))
+	fmt.Println(slice[idx]) // The selected item.
 }
 
 func ExampleFindMulti() {
@@ -78,12 +79,12 @@ func ExampleTerminalMock() {
 	term.InjectKey(tcell.KeyEsc, rune(tcell.KeyEsc), tcell.ModNone)
 
 	slice := []string{"foo", "bar", "baz"}
-	fuzzyfinder.Find(slice, func(i int) string { return slice[i] })
+	_, _ = fuzzyfinder.Find(slice, func(i int) string { return slice[i] })
 
 	// Write out the execution result to a temp file.
 	// We can test it by the golden files testing pattern.
 	//
 	// See https://speakerdeck.com/mitchellh/advanced-testing-with-go?slide=19
 	result := term.GetResult()
-	ioutil.WriteFile("ui.out", []byte(result), 0644)
+	_ = ioutil.WriteFile("ui.out", []byte(result), 0600)
 }

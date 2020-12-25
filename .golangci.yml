@@ -1,0 +1,56 @@
+linters-settings:
+  gofmt:
+    simplify: false
+
+linters:
+  enable:
+    - bodyclose
+    - deadcode
+    - dogsled
+    - dupl
+    - errcheck
+    - gocritic
+    - gofmt
+    - goimports
+    - golint
+    - gosec
+    - govet
+    - ineffassign
+    - misspell
+    - nakedret
+    - prealloc
+    - staticcheck
+    - structcheck
+    - stylecheck
+    - typecheck
+    - unconvert
+    - unparam
+    - varcheck
+    - whitespace
+    - interfacer
+    - asciicheck
+    - depguard
+    - godot
+    - gomodguard
+    - goprintffuncname
+    - maligned
+    - nolintlint
+    - rowserrcheck
+    - errorlint
+    - exhaustivestruct
+    - exportloopref
+    - gci
+  disable:
+    - gosimple
+    - unused
+    - scopelint
+
+issues:
+  exclude:
+    - G307 # gosec
+  exclude-rules:
+    - path: _test\.go
+      linters:
+        - golint
+        - maligned
+        - misspell
