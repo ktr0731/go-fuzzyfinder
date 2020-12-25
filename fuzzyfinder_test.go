@@ -143,6 +143,10 @@ func TestFind(t *testing.T) {
 			{tcell.KeyBackspace2, rune(tcell.KeyBackspace2), tcell.ModNone},
 			{tcell.KeyBackspace2, rune(tcell.KeyBackspace2), tcell.ModNone},
 		}...)...)},
+		"arrow left backspace": {append(runes("オレンジ"), keys([]input{
+			{tcell.KeyLeft, rune(tcell.KeyLeft), tcell.ModNone},
+			{tcell.KeyBackspace, rune(tcell.KeyBackspace), tcell.ModNone},
+		}...)...)},
 		"delete": {append(runes("オレンジ"), keys([]input{
 			{tcell.KeyCtrlA, 'A', tcell.ModCtrl},
 			{tcell.KeyDelete, rune(tcell.KeyDelete), tcell.ModNone},
