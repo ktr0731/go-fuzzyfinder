@@ -29,3 +29,4 @@ comment:
 
 ignore:
   - tcell.go
+  - mock.go

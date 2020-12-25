@@ -3,6 +3,7 @@ package fuzzyfinder_test
 import (
 	"flag"
 	"io/ioutil"
+	"log"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -14,6 +15,7 @@ import (
 	"github.com/gdamore/tcell/v2"
 	"github.com/google/go-cmp/cmp"
 	fuzzyfinder "github.com/ktr0731/go-fuzzyfinder"
+	"github.com/pkg/errors"
 )
 
 var (
@@ -25,8 +27,12 @@ func init() {
 	testing.Init()
 	flag.Parse()
 	if *update {
-		os.RemoveAll(filepath.Join("testdata", "fixtures"))
-		os.MkdirAll(filepath.Join("testdata", "fixtures"), 0755)
+		if err := os.RemoveAll(filepath.Join("testdata", "fixtures")); err != nil {
+			log.Fatalf("RemoveAll should not return an error, but got '%s'", err)
+		}
+		if err := os.MkdirAll(filepath.Join("testdata", "fixtures"), 0755); err != nil {
+			log.Fatalf("MkdirAll should not return an error, but got '%s'", err)
+		}
 	}
 }
 
@@ -50,7 +56,7 @@ func assertWithGolden(t *testing.T, f func(t *testing.T) string) {
 	fname := normalizeFilename(name)
 
 	if *update {
-		if err := ioutil.WriteFile(fname, []byte(actual), 0644); err != nil {
+		if err := ioutil.WriteFile(fname, []byte(actual), 0600); err != nil {
 			t.Fatalf("failed to update the golden file: %s", err)
 		}
 		return
@@ -63,7 +69,7 @@ func assertWithGolden(t *testing.T, f func(t *testing.T) string) {
 	}
 	expected := string(b)
 	if runtime.GOOS == "windows" {
-		expected = strings.Replace(expected, "\r\n", "\n", -1)
+		expected = strings.ReplaceAll(expected, "\r\n", "\n")
 	}
 
 	if diff := cmp.Diff(expected, actual); diff != "" {
@@ -180,6 +186,8 @@ func TestFind(t *testing.T) {
 	}
 
 	for name, c := range cases {
+		c := c
+
 		t.Run(name, func(t *testing.T) {
 			events := c.events
 
@@ -201,7 +209,7 @@ func TestFind(t *testing.T) {
 					}),
 					fuzzyfinder.WithMode(fuzzyfinder.ModeCaseSensitive),
 				)
-				if err != fuzzyfinder.ErrAbort {
+				if !errors.Is(err, fuzzyfinder.ErrAbort) {
 					t.Fatalf("Find must return ErrAbort, but got '%s'", err)
 				}
 
@@ -239,7 +247,7 @@ func TestFind_hotReload(t *testing.T) {
 			fuzzyfinder.WithMode(fuzzyfinder.ModeCaseSensitive),
 			fuzzyfinder.WithHotReload(),
 		)
-		if err != fuzzyfinder.ErrAbort {
+		if !errors.Is(err, fuzzyfinder.ErrAbort) {
 			t.Fatalf("Find must return ErrAbort, but got '%s'", err)
 		}
 
@@ -254,12 +262,13 @@ func TestFind_enter(t *testing.T) {
 		expected int
 	}{
 		"initial":                      {events: keys(input{tcell.KeyTab, rune(tcell.KeyTab), tcell.ModNone}), expected: 0},
-		"mode smart to case-sensitive": {events: append(runes("JI")), expected: 7},
+		"mode smart to case-sensitive": {events: runes("JI"), expected: 7},
 	}
 
 	for name, c := range cases {
+		c := c
+
 		t.Run(name, func(t *testing.T) {
-			c := c
 			events := c.events
 
 			f, term := fuzzyfinder.NewWithMockedTerminal()
@@ -322,14 +331,15 @@ func TestFindMulti(t *testing.T) {
 			{tcell.KeyTab, rune(tcell.KeyTab), tcell.ModNone},
 			{tcell.KeyTab, rune(tcell.KeyTab), tcell.ModNone},
 		}...), expected: []int{0}},
-		"empty result": {events: append(runes("fffffff")), abort: true},
+		"empty result": {events: runes("fffffff"), abort: true},
 		"resize window": {events: []tcell.Event{
 			tcell.NewEventResize(10, 10),
 		}, expected: []int{0}},
 	}
 	for name, c := range cases {
+		c := c
+
 		t.Run(name, func(t *testing.T) {
-			c := c
 			events := c.events
 
 			f, term := fuzzyfinder.NewWithMockedTerminal()
@@ -349,7 +359,7 @@ func TestFindMulti(t *testing.T) {
 				}),
 			)
 			if c.abort {
-				if err != fuzzyfinder.ErrAbort {
+				if !errors.Is(err, fuzzyfinder.ErrAbort) {
 					t.Fatalf("Find must return ErrAbort, but got '%s'", err)
 				}
 				return
@@ -374,7 +384,7 @@ func BenchmarkFind(b *testing.B) {
 			events := append(runes("adrele!!"), key(input{tcell.KeyEsc, rune(tcell.KeyEsc), tcell.ModNone}))
 			term.SetEventsV2(events...)
 
-			f.Find(
+			_, err := f.Find(
 				tracks,
 				func(i int) string {
 					return tracks[i].Name
@@ -386,6 +396,9 @@ func BenchmarkFind(b *testing.B) {
 					return "Name: " + tracks[i].Name + "\nArtist: " + tracks[i].Artist
 				}),
 			)
+			if err != nil {
+				b.Fatalf("should not return an error, but got '%s'", err)
+			}
 		}
 	})
 
@@ -397,7 +410,7 @@ func BenchmarkFind(b *testing.B) {
 			events := append(runes("adrele!!"), key(input{tcell.KeyEsc, rune(tcell.KeyEsc), tcell.ModNone}))
 			term.SetEventsV2(events...)
 
-			f.Find(
+			_, err := f.Find(
 				&tracks,
 				func(i int) string {
 					return tracks[i].Name
@@ -410,6 +423,9 @@ func BenchmarkFind(b *testing.B) {
 				}),
 				fuzzyfinder.WithHotReload(),
 			)
+			if err != nil {
+				b.Fatalf("should not return an error, but got '%s'", err)
+			}
 		}
 	})
 }
