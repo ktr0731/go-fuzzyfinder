@@ -25,7 +25,7 @@ format:
 
 .PHONY: credits
 credits:
-	gocredits . > CREDITS
+	gocredits -skip-missing . > CREDITS
 
 .PHONY: unit-test
 unit-test: lint
