@@ -10,7 +10,7 @@ require (
 	github.com/kisielk/godepgraph v0.0.0-20190626013829-57a7e4a651a9 // indirect
 	github.com/ktr0731/bump v0.1.0 // indirect
 	github.com/matryer/moq v0.1.4 // indirect
-	github.com/mattn/go-runewidth v0.0.9
+	github.com/mattn/go-runewidth v0.0.10
 	github.com/micmonay/keybd_event v1.1.0
 	github.com/nsf/termbox-go v0.0.0-20201124104050-ed494de23a00
 	github.com/pkg/errors v0.9.1
