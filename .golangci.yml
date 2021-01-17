@@ -37,13 +37,13 @@ linters:
     - nolintlint
     - rowserrcheck
     - errorlint
-    - exhaustivestruct
     - exportloopref
     - gci
   disable:
     - gosimple
     - unused
     - scopelint
+    - exhaustivestruct
 
 issues:
   exclude:

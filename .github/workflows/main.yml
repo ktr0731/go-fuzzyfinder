@@ -30,7 +30,7 @@ jobs:
       run: go build
 
     - name: Test
-      run: go test -v -coverpkg ./... -covermode atomic -coverprofile coverage.txt -tags fuzz -numCases 3000 -numEvents 10 ./...
+      run: go test -v -coverpkg ./... -covermode atomic -coverprofile coverage.txt -tags fuzz -numCases 3000 -numEvents 300 ./...
 
     - name: Lint
       uses: golangci/golangci-lint-action@v2

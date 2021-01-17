@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"io/ioutil"
 
-	"github.com/gdamore/tcell/v2"
 	fuzzyfinder "github.com/ktr0731/go-fuzzyfinder"
+	"github.com/nsf/termbox-go"
 )
 
 func ExampleFind() {
@@ -70,14 +70,24 @@ func ExampleFindMulti() {
 }
 
 func ExampleTerminalMock() {
-	// Initialize a mocked terminal.
-	term := fuzzyfinder.UseMockedTerminalV2()
-	keys := "foo"
-	for _, r := range keys {
-		term.InjectKey(tcell.KeyRune, r, tcell.ModNone)
+	keys := func(str string) []termbox.Event {
+		s := []rune(str)
+		e := make([]termbox.Event, 0, len(s))
+		for _, r := range s {
+			e = append(e, termbox.Event{Type: termbox.EventKey, Ch: r})
+		}
+		return e
 	}
-	term.InjectKey(tcell.KeyEsc, rune(tcell.KeyEsc), tcell.ModNone)
 
+	// Initialize a mocked terminal.
+	term := fuzzyfinder.UseMockedTerminal()
+	// Set the window size and events.
+	term.SetSize(60, 10)
+	term.SetEvents(append(
+		keys("foo"),
+		termbox.Event{Type: termbox.EventKey, Key: termbox.KeyEsc})...)
+
+	// Call fuzzyfinder.Find.
 	slice := []string{"foo", "bar", "baz"}
 	_, _ = fuzzyfinder.Find(slice, func(i int) string { return slice[i] })
 
