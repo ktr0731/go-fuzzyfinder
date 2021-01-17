@@ -11,56 +11,57 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/gdamore/tcell/v2"
-
 	fuzz "github.com/google/gofuzz"
 	fuzzyfinder "github.com/ktr0731/go-fuzzyfinder"
+	"github.com/nsf/termbox-go"
 )
 
 type fuzzKey struct {
-	key  tcell.Key
+	key  termbox.Key
 	name string
 }
 
 var (
 	letters = []rune("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789一花二乃三玖四葉五月")
-	tbkeys  = []tcell.Key{
-		tcell.KeyCtrlA,
-		tcell.KeyCtrlB,
-		tcell.KeyCtrlE,
-		tcell.KeyCtrlF,
-		tcell.KeyBackspace,
-		tcell.KeyTab,
-		tcell.KeyCtrlJ,
-		tcell.KeyCtrlK,
-		tcell.KeyCtrlN,
-		tcell.KeyCtrlP,
-		tcell.KeyCtrlU,
-		tcell.KeyCtrlW,
-		tcell.KeyBackspace2,
-		tcell.KeyUp,
-		tcell.KeyDown,
-		tcell.KeyLeft,
-		tcell.KeyRight,
+	tbkeys  = []termbox.Key{
+		termbox.KeyCtrlA,
+		termbox.KeyCtrlB,
+		termbox.KeyCtrlE,
+		termbox.KeyCtrlF,
+		termbox.KeyBackspace,
+		termbox.KeyTab,
+		termbox.KeyCtrlJ,
+		termbox.KeyCtrlK,
+		termbox.KeyCtrlN,
+		termbox.KeyCtrlP,
+		termbox.KeyCtrlU,
+		termbox.KeyCtrlW,
+		termbox.KeySpace,
+		termbox.KeyBackspace2,
+		termbox.KeyArrowUp,
+		termbox.KeyArrowDown,
+		termbox.KeyArrowLeft,
+		termbox.KeyArrowRight,
 	}
-	keyMap = map[tcell.Key]string{
-		tcell.KeyCtrlA:      "A",
-		tcell.KeyCtrlB:      "B",
-		tcell.KeyCtrlE:      "E",
-		tcell.KeyCtrlF:      "F",
-		tcell.KeyBackspace:  "backspace",
-		tcell.KeyTab:        "tab",
-		tcell.KeyCtrlJ:      "J",
-		tcell.KeyCtrlK:      "K",
-		tcell.KeyCtrlN:      "N",
-		tcell.KeyCtrlP:      "P",
-		tcell.KeyCtrlU:      "U",
-		tcell.KeyCtrlW:      "W",
-		tcell.KeyBackspace2: "backspace2",
-		tcell.KeyUp:         "up",
-		tcell.KeyDown:       "down",
-		tcell.KeyLeft:       "left",
-		tcell.KeyRight:      "right",
+	keyMap = map[termbox.Key]string{
+		termbox.KeyCtrlA:      "A",
+		termbox.KeyCtrlB:      "B",
+		termbox.KeyCtrlE:      "E",
+		termbox.KeyCtrlF:      "F",
+		termbox.KeyBackspace:  "backspace",
+		termbox.KeyTab:        "tab",
+		termbox.KeyCtrlJ:      "J",
+		termbox.KeyCtrlK:      "K",
+		termbox.KeyCtrlN:      "N",
+		termbox.KeyCtrlP:      "P",
+		termbox.KeyCtrlU:      "U",
+		termbox.KeyCtrlW:      "W",
+		termbox.KeySpace:      "space",
+		termbox.KeyBackspace2: "backspace2",
+		termbox.KeyArrowUp:    "up",
+		termbox.KeyArrowDown:  "down",
+		termbox.KeyArrowLeft:  "left",
+		termbox.KeyArrowRight: "right",
 	}
 )
 
@@ -68,14 +69,14 @@ var (
 	out       = flag.String("fuzzout", "fuzz.out", "fuzzing error cases")
 	hotReload = flag.Bool("hotreload", false, "enable hot-reloading")
 	numCases  = flag.Int("numCases", 30, "number of test cases")
-	numEvents = flag.Int("numEvents", 10, "number of events")
+	numEvents = flag.Int("numEvents", 100, "number of events")
 )
 
 // TestFuzz executes fuzzing tests.
 //
 // Example:
 //
-//   go test -tags fuzz -run TestFuzz -numCases 10 -numEvents 10
+//   go test -tags fuzz -run TestFuzz -numCases 1000 -numEvents 100
 //
 func TestFuzz(t *testing.T) {
 	f, err := os.Create(*out)
@@ -86,32 +87,25 @@ func TestFuzz(t *testing.T) {
 
 	fuzz := fuzz.New()
 
-	min := func(a, b int) int {
-		if a < b {
-			return a
-		}
-		return b
-	}
-
 	for i := 0; i < rand.Intn(*numCases)+10; i++ {
-		// number of events in tcell.SimulationScreen is limited 10
-		n := rand.Intn(min(*numEvents, 10))
-		events := make([]tcell.Event, n)
+		n := rand.Intn(*numEvents) + 10
+		events := make([]termbox.Event, n)
 		for i := 0; i < n; i++ {
 			if rand.Intn(10) > 3 {
 				events[i] = ch(letters[rand.Intn(len(letters)-1)])
 			} else {
-				k := tbkeys[rand.Intn(len(tbkeys)-1)]
-				events[i] = key(input{k, rune(k), tcell.ModNone})
+				events[i] = key(tbkeys[rand.Intn(len(tbkeys)-1)])
 			}
 		}
 
 		var name string
 		for _, e := range events {
-			if e.(*tcell.EventKey).Rune() != 0 {
-				name += string(e.(*tcell.EventKey).Rune())
+			if e.Key == termbox.KeySpace {
+				name += " "
+			} else if e.Ch != 0 {
+				name += string(e.Ch)
 			} else {
-				name += "[" + keyMap[e.(*tcell.EventKey).Key()] + "]"
+				name += "[" + keyMap[e.Key] + "]"
 			}
 		}
 
@@ -128,9 +122,8 @@ func TestFuzz(t *testing.T) {
 			tracks := tracks
 
 			f, term := fuzzyfinder.NewWithMockedTerminal()
-			events = append(events, key(input{tcell.KeyEsc, rune(tcell.KeyEsc), tcell.ModNone}))
-
-			term.SetEventsV2(events...)
+			events = append(events, key(termbox.KeyEsc))
+			term.SetEvents(events...)
 
 			var (
 				iface     interface{}

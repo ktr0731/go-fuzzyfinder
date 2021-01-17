@@ -12,9 +12,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/gdamore/tcell/v2"
 	"github.com/google/go-cmp/cmp"
 	fuzzyfinder "github.com/ktr0731/go-fuzzyfinder"
+	"github.com/nsf/termbox-go"
 	"github.com/pkg/errors"
 )
 
@@ -119,85 +119,38 @@ func TestReal(t *testing.T) {
 
 func TestFind(t *testing.T) {
 	cases := map[string]struct {
-		events []tcell.Event
+		events []termbox.Event
 	}{
-		"initial":    {},
-		"input lo":   {runes("lo")},
-		"input glow": {runes("glow")},
-		"arrow up-down": {keys([]input{
-			{tcell.KeyUp, rune(tcell.KeyUp), tcell.ModNone},
-			{tcell.KeyUp, rune(tcell.KeyUp), tcell.ModNone},
-			{tcell.KeyDown, rune(tcell.KeyDown), tcell.ModNone},
-		}...)},
-		"arrow left-right": {append(runes("ゆるふわ樹海"), keys([]input{
-			{tcell.KeyLeft, rune(tcell.KeyLeft), tcell.ModNone},
-			{tcell.KeyLeft, rune(tcell.KeyLeft), tcell.ModNone},
-			{tcell.KeyRight, rune(tcell.KeyRight), tcell.ModNone},
-		}...)...)},
-		"backspace": {append(runes("adr .-"), keys([]input{
-			{tcell.KeyBackspace, rune(tcell.KeyBackspace), tcell.ModNone},
-			{tcell.KeyBackspace, rune(tcell.KeyBackspace), tcell.ModNone},
-		}...)...)},
-		"backspace empty": {keys(input{tcell.KeyBackspace2, rune(tcell.KeyBackspace2), tcell.ModNone})},
-		"backspace2": {append(runes("オレンジ"), keys([]input{
-			{tcell.KeyBackspace2, rune(tcell.KeyBackspace2), tcell.ModNone},
-			{tcell.KeyBackspace2, rune(tcell.KeyBackspace2), tcell.ModNone},
-		}...)...)},
-		"arrow left backspace": {append(runes("オレンジ"), keys([]input{
-			{tcell.KeyLeft, rune(tcell.KeyLeft), tcell.ModNone},
-			{tcell.KeyBackspace, rune(tcell.KeyBackspace), tcell.ModNone},
-		}...)...)},
-		"delete": {append(runes("オレンジ"), keys([]input{
-			{tcell.KeyCtrlA, 'A', tcell.ModCtrl},
-			{tcell.KeyDelete, rune(tcell.KeyDelete), tcell.ModNone},
-		}...)...)},
-		"delete empty": {keys([]input{
-			{tcell.KeyCtrlA, 'A', tcell.ModCtrl},
-			{tcell.KeyDelete, rune(tcell.KeyDelete), tcell.ModNone},
-		}...)},
-		"ctrl-e": {append(runes("恋をしたのは"), keys([]input{
-			{tcell.KeyCtrlA, 'A', tcell.ModCtrl},
-			{tcell.KeyCtrlE, 'E', tcell.ModCtrl},
-		}...)...)},
-		"ctrl-w":       {append(runes("ハロ / ハワユ"), keys(input{tcell.KeyCtrlW, 'W', tcell.ModCtrl})...)},
-		"ctrl-w empty": {keys(input{tcell.KeyCtrlW, 'W', tcell.ModCtrl})},
-		"ctrl-u": {append(runes("恋をしたのは"), keys([]input{
-			{tcell.KeyLeft, rune(tcell.KeyLeft), tcell.ModNone},
-			{tcell.KeyCtrlU, 'U', tcell.ModCtrl},
-			{tcell.KeyRight, rune(tcell.KeyRight), tcell.ModNone},
-		}...)...)},
-		"long item": {keys([]input{
-			{tcell.KeyUp, rune(tcell.KeyUp), tcell.ModNone},
-			{tcell.KeyUp, rune(tcell.KeyUp), tcell.ModNone},
-			{tcell.KeyUp, rune(tcell.KeyUp), tcell.ModNone},
-		}...)},
-		"paging": {keys([]input{
-			{tcell.KeyUp, rune(tcell.KeyUp), tcell.ModNone},
-			{tcell.KeyUp, rune(tcell.KeyUp), tcell.ModNone},
-			{tcell.KeyUp, rune(tcell.KeyUp), tcell.ModNone},
-			{tcell.KeyUp, rune(tcell.KeyUp), tcell.ModNone},
-			{tcell.KeyUp, rune(tcell.KeyUp), tcell.ModNone},
-			{tcell.KeyUp, rune(tcell.KeyUp), tcell.ModNone},
-			{tcell.KeyUp, rune(tcell.KeyUp), tcell.ModNone},
-			{tcell.KeyUp, rune(tcell.KeyUp), tcell.ModNone},
-		}...)},
-		"tab doesn't work": {keys(input{tcell.KeyTab, rune(tcell.KeyTab), tcell.ModNone})},
-		"backspace doesnt change x if cursorX is 0": {append(runes("a"), keys([]input{
-			{tcell.KeyCtrlA, 'A', tcell.ModCtrl},
-			{tcell.KeyBackspace, rune(tcell.KeyBackspace), tcell.ModNone},
-			{tcell.KeyCtrlF, 'F', tcell.ModCtrl},
-		}...)...)},
+		"initial":          {},
+		"input lo":         {runes("lo")},
+		"input glow":       {runes("glow")},
+		"arrow up-down":    {keys(termbox.KeyArrowUp, termbox.KeyArrowUp, termbox.KeyArrowDown)},
+		"arrow left-right": {append(runes("ゆるふわ樹海ガール"), keys(termbox.KeyArrowLeft, termbox.KeyArrowLeft, termbox.KeyArrowLeft, termbox.KeyArrowRight)...)},
+		"backspace":        {append(runes("adrenaline!!! -TV Ver.-"), keys(termbox.KeyBackspace, termbox.KeyBackspace, termbox.KeyArrowLeft, termbox.KeyArrowLeft, termbox.KeyBackspace)...)},
+		"backspace empty":  {keys(termbox.KeyBackspace2, termbox.KeyBackspace2)},
+		"backspace2":       {append(runes("オレンジ"), keys(termbox.KeyBackspace2, termbox.KeyBackspace2)...)},
+		"delete":           {append(runes("オレンジ"), keys(termbox.KeyCtrlA, termbox.KeyDelete)...)},
+		"delete empty":     {keys(termbox.KeyCtrlA, termbox.KeyDelete)},
+		"ctrl-e":           {append(runes("恋をしたのは"), keys(termbox.KeyCtrlA, termbox.KeyCtrlE)...)},
+		"ctrl-w":           {append(runes("ハロ / ハワユ"), key(termbox.KeyCtrlW))},
+		"ctrl-w emtpy":     {keys(termbox.KeyCtrlW)},
+		"ctrl-u":           {append(runes("恋をしたのは"), keys(termbox.KeyArrowLeft, termbox.KeyCtrlU, termbox.KeyArrowRight)...)},
+		"long item":        {keys(termbox.KeyArrowUp, termbox.KeyArrowUp, termbox.KeyArrowUp)},
+		"paging":           {keys(termbox.KeyArrowUp, termbox.KeyArrowUp, termbox.KeyArrowUp, termbox.KeyArrowUp, termbox.KeyArrowUp, termbox.KeyArrowUp, termbox.KeyArrowUp, termbox.KeyArrowUp)},
+		"tab doesn't work": {keys(termbox.KeyTab)},
+		"backspace doesnt change x if cursorX is 0": {append(runes("a"), keys(termbox.KeyCtrlA, termbox.KeyBackspace, termbox.KeyCtrlF)...)},
 	}
 
 	for name, c := range cases {
 		c := c
 
 		t.Run(name, func(t *testing.T) {
+			c := c
 			events := c.events
 
 			f, term := fuzzyfinder.NewWithMockedTerminal()
-			events = append(events, key(input{tcell.KeyEsc, rune(tcell.KeyEsc), tcell.ModNone}))
-			term.SetEventsV2(events...)
+			events = append(events, key(termbox.KeyEsc))
+			term.SetEvents(events...)
 
 			assertWithGolden(t, func(t *testing.T) string {
 				_, err := f.Find(
@@ -217,8 +170,7 @@ func TestFind(t *testing.T) {
 					t.Fatalf("Find must return ErrAbort, but got '%s'", err)
 				}
 
-				res := term.GetResult()
-				return res
+				return term.GetResult()
 			})
 		})
 	}
@@ -226,8 +178,8 @@ func TestFind(t *testing.T) {
 
 func TestFind_hotReload(t *testing.T) {
 	f, term := fuzzyfinder.NewWithMockedTerminal()
-	events := append(runes("adrena"), keys(input{tcell.KeyEsc, rune(tcell.KeyEsc), tcell.ModNone})...)
-	term.SetEventsV2(events...)
+	events := append(runes("adrena"), keys(termbox.KeyEsc)...)
+	term.SetEvents(events...)
 
 	var mu sync.Mutex
 	assertWithGolden(t, func(t *testing.T) string {
@@ -255,18 +207,17 @@ func TestFind_hotReload(t *testing.T) {
 			t.Fatalf("Find must return ErrAbort, but got '%s'", err)
 		}
 
-		res := term.GetResult()
-		return res
+		return term.GetResult()
 	})
 }
 
 func TestFind_enter(t *testing.T) {
 	cases := map[string]struct {
-		events   []tcell.Event
+		events   []termbox.Event
 		expected int
 	}{
-		"initial":                      {events: keys(input{tcell.KeyTab, rune(tcell.KeyTab), tcell.ModNone}), expected: 0},
-		"mode smart to case-sensitive": {events: runes("JI"), expected: 7},
+		"initial":                      {events: keys(termbox.KeyTab), expected: 0},
+		"mode smart to case-sensitive": {events: runes("CHI"), expected: 7},
 	}
 
 	for name, c := range cases {
@@ -276,8 +227,8 @@ func TestFind_enter(t *testing.T) {
 			events := c.events
 
 			f, term := fuzzyfinder.NewWithMockedTerminal()
-			events = append(events, key(input{tcell.KeyEnter, rune(tcell.KeyEnter), tcell.ModNone}))
-			term.SetEventsV2(events...)
+			events = append(events, key(termbox.KeyEnter))
+			term.SetEvents(events...)
 
 			idx, err := f.Find(
 				tracks,
@@ -285,7 +236,6 @@ func TestFind_enter(t *testing.T) {
 					return tracks[i].Name
 				},
 			)
-
 			if err != nil {
 				t.Fatalf("Find must not return an error, but got '%s'", err)
 			}
@@ -316,29 +266,16 @@ func TestFind_error(t *testing.T) {
 
 func TestFindMulti(t *testing.T) {
 	cases := map[string]struct {
-		events   []tcell.Event
+		events   []termbox.Event
 		expected []int
 		abort    bool
 	}{
-		"input glow": {events: runes("glow"), expected: []int{0}},
-		"select two items": {events: keys([]input{
-			{tcell.KeyTab, rune(tcell.KeyTab), tcell.ModNone},
-			{tcell.KeyUp, rune(tcell.KeyUp), tcell.ModNone},
-			{tcell.KeyTab, rune(tcell.KeyTab), tcell.ModNone},
-		}...), expected: []int{0, 1}},
-		"select two items with another order": {events: keys([]input{
-			{tcell.KeyUp, rune(tcell.KeyUp), tcell.ModNone},
-			{tcell.KeyTab, rune(tcell.KeyTab), tcell.ModNone},
-			{tcell.KeyTab, rune(tcell.KeyTab), tcell.ModNone},
-		}...), expected: []int{1, 0}},
-		"toggle": {events: keys([]input{
-			{tcell.KeyTab, rune(tcell.KeyTab), tcell.ModNone},
-			{tcell.KeyTab, rune(tcell.KeyTab), tcell.ModNone},
-		}...), expected: []int{0}},
-		"empty result": {events: runes("fffffff"), abort: true},
-		"resize window": {events: []tcell.Event{
-			tcell.NewEventResize(10, 10),
-		}, expected: []int{0}},
+		"input glow":                          {events: runes("glow"), expected: []int{0}},
+		"select two items":                    {events: keys(termbox.KeyTab, termbox.KeyArrowUp, termbox.KeyTab), expected: []int{0, 1}},
+		"select two items with another order": {events: keys(termbox.KeyArrowUp, termbox.KeyTab, termbox.KeyTab), expected: []int{1, 0}},
+		"toggle":                              {events: keys(termbox.KeyTab, termbox.KeyTab), expected: []int{0}},
+		"empty result":                        {events: runes("ffffffffffffff"), abort: true},
+		"resize window":                       {events: []termbox.Event{termbox.Event{Type: termbox.EventResize}}, expected: []int{0}},
 	}
 	for name, c := range cases {
 		c := c
@@ -347,8 +284,8 @@ func TestFindMulti(t *testing.T) {
 			events := c.events
 
 			f, term := fuzzyfinder.NewWithMockedTerminal()
-			events = append(events, key(input{tcell.KeyEnter, rune(tcell.KeyEnter), tcell.ModNone}))
-			term.SetEventsV2(events...)
+			events = append(events, key(termbox.KeyEnter))
+			term.SetEvents(events...)
 
 			idxs, err := f.FindMulti(
 				tracks,
@@ -385,9 +322,7 @@ func BenchmarkFind(b *testing.B) {
 		b.ResetTimer()
 		for i := 0; i < b.N; i++ {
 			f, term := fuzzyfinder.NewWithMockedTerminal()
-			events := append(runes("adrele!!"), key(input{tcell.KeyEsc, rune(tcell.KeyEsc), tcell.ModNone}))
-			term.SetEventsV2(events...)
-
+			term.SetEvents(append(runes("adrele!!"), key(termbox.KeyEsc))...)
 			_, err := f.Find(
 				tracks,
 				func(i int) string {
@@ -411,9 +346,7 @@ func BenchmarkFind(b *testing.B) {
 		b.ResetTimer()
 		for i := 0; i < b.N; i++ {
 			f, term := fuzzyfinder.NewWithMockedTerminal()
-			events := append(runes("adrele!!"), key(input{tcell.KeyEsc, rune(tcell.KeyEsc), tcell.ModNone}))
-			term.SetEventsV2(events...)
-
+			term.SetEvents(append(runes("adrele!!"), key(termbox.KeyEsc))...)
 			_, err := f.Find(
 				&tracks,
 				func(i int) string {
@@ -434,33 +367,36 @@ func BenchmarkFind(b *testing.B) {
 	})
 }
 
-func runes(s string) []tcell.Event {
+func runes(s string) []termbox.Event {
 	r := []rune(s)
-	e := make([]tcell.Event, 0, len(r))
+	e := make([]termbox.Event, 0, len(r))
 	for _, r := range r {
 		e = append(e, ch(r))
 	}
 	return e
 }
 
-func ch(r rune) tcell.Event {
-	return key(input{tcell.KeyRune, r, tcell.ModNone})
+func ch(r rune) termbox.Event {
+	if r == ' ' {
+		return key(termbox.KeySpace)
+	}
+	return termbox.Event{
+		Type: termbox.EventKey,
+		Ch:   r,
+	}
 }
 
-func key(input input) tcell.Event {
-	return tcell.NewEventKey(input.key, input.ch, input.mod)
+func key(key termbox.Key) termbox.Event {
+	return termbox.Event{
+		Type: termbox.EventKey,
+		Key:  key,
+	}
 }
 
-func keys(inputs ...input) []tcell.Event {
-	k := make([]tcell.Event, 0, len(inputs))
-	for _, in := range inputs {
-		k = append(k, key(in))
+func keys(keys ...termbox.Key) []termbox.Event {
+	k := make([]termbox.Event, 0, len(keys))
+	for _, _key := range keys {
+		k = append(k, key(_key))
 	}
 	return k
-}
-
-type input struct {
-	key tcell.Key
-	ch  rune
-	mod tcell.ModMask
 }
