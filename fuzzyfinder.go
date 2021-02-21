@@ -18,7 +18,6 @@ import (
 	"github.com/gdamore/tcell/v2"
 	"github.com/ktr0731/go-fuzzyfinder/matching"
 	runewidth "github.com/mattn/go-runewidth"
-	"github.com/micmonay/keybd_event"
 	"github.com/pkg/errors"
 )
 
@@ -678,21 +677,6 @@ func (f *finder) find(slice interface{}, itemFunc func(i int) string, opts []Opt
 	}
 }
 
-// This method avoid tcell bug https://github.com/gdamore/tcell/issues/194
-// Additional EOL event is sent to ensure, consequent events, are correctly handled.
-func sendExtraEventFix() error {
-	kb, err := keybd_event.NewKeyBonding()
-	if err != nil {
-		return err
-	}
-	kb.SetKeys(keybd_event.VK_ENTER)
-	err = kb.Launching()
-	if err != nil {
-		return err
-	}
-	return nil
-}
-
 // Find displays a UI that provides fuzzy finding against the provided slice.
 // The argument slice must be of a slice type. If not, Find returns
 // an error. itemFunc is called by the length of slice. previewFunc is called
@@ -709,11 +693,6 @@ func Find(slice interface{}, itemFunc func(i int) string, opts ...Option) (int, 
 
 func (f *finder) Find(slice interface{}, itemFunc func(i int) string, opts ...Option) (int, error) {
 	res, err := f.find(slice, itemFunc, opts)
-	if !isInTesting() {
-		if err := sendExtraEventFix(); err != nil {
-			return 0, err
-		}
-	}
 
 	if err != nil {
 		return 0, err
@@ -730,11 +709,6 @@ func FindMulti(slice interface{}, itemFunc func(i int) string, opts ...Option) (
 func (f *finder) FindMulti(slice interface{}, itemFunc func(i int) string, opts ...Option) ([]int, error) {
 	opts = append(opts, withMulti())
 	res, err := f.find(slice, itemFunc, opts)
-	if !isInTesting() {
-		if err := sendExtraEventFix(); err != nil {
-			return nil, err
-		}
-	}
 	return res, err
 }
 
