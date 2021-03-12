@@ -27,10 +27,6 @@ var (
 	errEntered = errors.New("entered")
 )
 
-var (
-	defaultFinder = &finder{}
-)
-
 type state struct {
 	items      []string           // All item names.
 	allMatched []matching.Matched // All items.
@@ -66,6 +62,10 @@ type finder struct {
 	drawTimer *time.Timer
 	eventCh   chan struct{}
 	opt       *opt
+}
+
+func newFinder() *finder {
+	return &finder{}
 }
 
 func (f *finder) initFinder(items []string, matched []matching.Matched, opt opt) error {
@@ -688,7 +688,8 @@ func (f *finder) find(slice interface{}, itemFunc func(i int) string, opts []Opt
 //
 // Find returns ErrAbort if a call to Find is finished with no selection.
 func Find(slice interface{}, itemFunc func(i int) string, opts ...Option) (int, error) {
-	return defaultFinder.Find(slice, itemFunc, opts...)
+	f := newFinder()
+	return f.Find(slice, itemFunc, opts...)
 }
 
 func (f *finder) Find(slice interface{}, itemFunc func(i int) string, opts ...Option) (int, error) {
@@ -703,7 +704,8 @@ func (f *finder) Find(slice interface{}, itemFunc func(i int) string, opts ...Op
 // FindMulti is nearly the same as Find. The only difference from Find is that
 // the user can select multiple items at once, by using the tab key.
 func FindMulti(slice interface{}, itemFunc func(i int) string, opts ...Option) ([]int, error) {
-	return defaultFinder.FindMulti(slice, itemFunc, opts...)
+	f := newFinder()
+	return f.FindMulti(slice, itemFunc, opts...)
 }
 
 func (f *finder) FindMulti(slice interface{}, itemFunc func(i int) string, opts ...Option) ([]int, error) {
