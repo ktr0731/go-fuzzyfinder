@@ -6,6 +6,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/gdamore/tcell/v2"
 	runewidth "github.com/mattn/go-runewidth"
 	"github.com/nsf/termbox-go"
 )
@@ -15,9 +16,12 @@ type cell struct {
 	bg, fg termbox.Attribute
 }
 
+type simScreen tcell.SimulationScreen
+
 // TerminalMock is a mocked terminal for testing.
 // Most users should use it by calling UseMockedTerminal.
 type TerminalMock struct {
+	simScreen
 	sizeMu        sync.RWMutex
 	width, height int
 
@@ -31,11 +35,16 @@ type TerminalMock struct {
 	result   string
 
 	sleepDuration time.Duration
+	v2            bool
 }
 
 // SetSize changes the pseudo-size of the window.
 // Note that SetSize resets added cells.
 func (m *TerminalMock) SetSize(w, h int) {
+	if m.v2 {
+		m.simScreen.SetSize(w, h)
+		return
+	}
 	m.sizeMu.Lock()
 	defer m.sizeMu.Unlock()
 	m.cellsMu.Lock()
@@ -45,20 +54,94 @@ func (m *TerminalMock) SetSize(w, h int) {
 	m.cells = make([]*cell, w*h)
 }
 
+// Deprecated: Use SetEventsV2
 // SetEvents sets all events, which are fetched by pollEvent.
 // A user of this must set the EscKey event at the end.
-func (m *TerminalMock) SetEvents(e ...termbox.Event) {
+func (m *TerminalMock) SetEvents(events ...termbox.Event) {
 	m.eventsMu.Lock()
 	defer m.eventsMu.Unlock()
-	m.events = e
+	m.events = events
+}
+
+// SetEventsV2 sets all events, which are fetched by pollEvent.
+// A user of this must set the EscKey event at the end.
+func (m *TerminalMock) SetEventsV2(events ...tcell.Event) {
+	for _, event := range events {
+		switch event := event.(type) {
+		case *tcell.EventKey:
+			ek := event
+			m.simScreen.InjectKey(ek.Key(), ek.Rune(), ek.Modifiers())
+		case *tcell.EventResize:
+			er := event
+			w, h := er.Size()
+			m.simScreen.SetSize(w, h)
+		}
+	}
 }
 
 // GetResult returns a flushed string that is displayed to the actual terminal.
 // It contains all escape sequences such that ANSI escape code.
 func (m *TerminalMock) GetResult() string {
-	m.resultMu.RLock()
-	defer m.resultMu.RUnlock()
-	return m.result
+	if !m.v2 {
+		m.resultMu.RLock()
+		defer m.resultMu.RUnlock()
+		return m.result
+	}
+
+	var s string
+
+	// set cursor for snapshot test
+	setCursor := func() {
+		cursorX, cursorY, _ := m.simScreen.GetCursor()
+		mainc, _, _, _ := m.simScreen.GetContent(cursorX, cursorY)
+		if mainc == ' ' {
+			m.simScreen.SetContent(cursorX, cursorY, '\u2588', nil, tcell.StyleDefault.Foreground(tcell.ColorWhite).Background(tcell.ColorDefault))
+		} else {
+			m.simScreen.SetContent(cursorX, cursorY, mainc, nil, tcell.StyleDefault.Background(tcell.ColorWhite))
+		}
+		m.simScreen.Show()
+	}
+
+	setCursor()
+
+	m.resultMu.Lock()
+
+	cells, width, height := m.simScreen.GetContents()
+
+	for h := 0; h < height; h++ {
+		prevFg, prevBg := tcell.ColorDefault, tcell.ColorDefault
+		for w := 0; w < width; w++ {
+			cell := cells[h*width+w]
+			fg, bg, attr := cell.Style.Decompose()
+			var fgReset bool
+			if fg != prevFg {
+				s += "\x1b\x5b\x6d" // Reset previous color.
+				s += parseAttrV2(&fg, nil, attr)
+				prevFg = fg
+				prevBg = tcell.ColorDefault
+				fgReset = true
+			}
+			if bg != prevBg {
+				if !fgReset {
+					s += "\x1b\x5b\x6d" // Reset previous color.
+					prevFg = tcell.ColorDefault
+				}
+				s += parseAttrV2(nil, &bg, attr)
+				prevBg = bg
+			}
+			s += string(cell.Runes)
+			rw := runewidth.RuneWidth(cell.Runes[0])
+			if rw != 0 {
+				w += rw - 1
+			}
+		}
+		s += "\n"
+	}
+	s += "\x1b\x5b\x6d" // Reset previous color.
+
+	m.resultMu.Unlock()
+
+	return s
 }
 
 func (m *TerminalMock) init() error {
@@ -125,7 +208,7 @@ func (m *TerminalMock) pollEvent() termbox.Event {
 }
 
 // flush displays all items with formatted layout.
-func (m *TerminalMock) flush() error {
+func (m *TerminalMock) flush() {
 	m.cellsMu.RLock()
 
 	var s string
@@ -174,8 +257,6 @@ func (m *TerminalMock) flush() error {
 	defer m.resultMu.Unlock()
 
 	m.result = s
-
-	return nil
 }
 
 func (m *TerminalMock) close() {}
@@ -183,11 +264,32 @@ func (m *TerminalMock) close() {}
 // UseMockedTerminal switches the terminal, which is used from
 // this package to a mocked one.
 func UseMockedTerminal() *TerminalMock {
-	return defaultFinder.UseMockedTerminal()
+	f := newFinder()
+	return f.UseMockedTerminal()
+}
+
+// UseMockedTerminalV2 switches the terminal, which is used from
+// this package to a mocked one.
+func UseMockedTerminalV2() *TerminalMock {
+	f := newFinder()
+	return f.UseMockedTerminalV2()
 }
 
 func (f *finder) UseMockedTerminal() *TerminalMock {
 	m := &TerminalMock{}
+	f.term = m
+	return m
+}
+
+func (f *finder) UseMockedTerminalV2() *TerminalMock {
+	screen := tcell.NewSimulationScreen("UTF-8")
+	if err := screen.Init(); err != nil {
+		panic(err)
+	}
+	m := &TerminalMock{
+		simScreen: screen,
+		v2:        true,
+	}
 	f.term = m
 	return m
 }
@@ -232,4 +334,62 @@ func parseAttr(attr termbox.Attribute, isFg bool) string {
 	buf.WriteString("m")
 
 	return buf.String()
+}
+
+// parseAttrV2 parses color and attribute for testing.
+func parseAttrV2(fg, bg *tcell.Color, attr tcell.AttrMask) string {
+	if attr == tcell.AttrInvalid {
+		panic("invalid attribute")
+	}
+
+	var buf bytes.Buffer
+
+	buf.WriteString("\x1b[")
+	parseAttrMask := func() {
+		if attr >= tcell.AttrUnderline {
+			buf.WriteString("4;")
+			attr -= tcell.AttrUnderline
+		}
+		if attr >= tcell.AttrReverse {
+			buf.WriteString("7;")
+			attr -= tcell.AttrReverse
+		}
+		if attr >= tcell.AttrBold {
+			buf.WriteString("1;")
+			attr -= tcell.AttrBold
+		}
+	}
+
+	if fg != nil || bg != nil {
+		isFg := fg != nil && bg == nil
+
+		if isFg {
+			parseAttrMask()
+			if *fg == tcell.ColorDefault {
+				buf.WriteString("39")
+			} else {
+				fmt.Fprintf(&buf, "38;5;%d", toAnsi3bit(*fg))
+			}
+		} else {
+			if *bg == tcell.ColorDefault {
+				buf.WriteString("49")
+			} else {
+				fmt.Fprintf(&buf, "48;5;%d", toAnsi3bit(*bg))
+			}
+		}
+		buf.WriteString("m")
+	}
+	return buf.String()
+}
+
+func toAnsi3bit(color tcell.Color) int {
+	colors := []tcell.Color{
+		tcell.ColorBlack, tcell.ColorRed, tcell.ColorGreen, tcell.ColorYellow, tcell.ColorBlue, tcell.ColorDarkMagenta, tcell.ColorDarkCyan, tcell.ColorWhite,
+	}
+	for i, c := range colors {
+		if c == color {
+			return i
+		}
+	}
+	return 0
 }
