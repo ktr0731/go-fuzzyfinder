@@ -6,7 +6,7 @@ jobs:
     runs-on: ubuntu-latest
     if: github.actor == 'dependabot[bot]'
     steps:
-      - name: automerge
+      - name: Auto approve and merge Pull Request
         uses: actions/github-script@v3.1
         with:
           github-token: "${{ secrets.GITHUB_TOKEN }}"
@@ -15,10 +15,11 @@ jobs:
               owner: context.repo.owner,
               repo: context.repo.repo,
               pull_number: context.issue.number,
-              event: 'APPROVE'
+              event: APPROVE
             })
             await github.pulls.merge({
               owner: context.repo.owner,
               repo: context.repo.repo,
               pull_number: context.issue.number,
+              merge_method: squash
             })
