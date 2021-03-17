@@ -15,7 +15,7 @@ jobs:
               owner: context.repo.owner,
               repo: context.repo.repo,
               pull_number: context.issue.number,
-              event: APPROVE
+              event: "APPROVE"
             })
             await github.pulls.merge({
               owner: context.repo.owner,
