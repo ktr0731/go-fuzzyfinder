@@ -33,7 +33,7 @@ jobs:
       run: go test -v -coverpkg ./... -covermode atomic -coverprofile coverage.txt -tags fuzz -numCases 3000 -numEvents 10 ./...
 
     - name: Lint
-      uses: golangci/golangci-lint-action@v2
+      uses: golangci/golangci-lint-action@v2.5.2
       if: matrix.os == 'ubuntu-latest'
       with:
         version: v1.33.0
