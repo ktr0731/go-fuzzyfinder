@@ -57,9 +57,8 @@ func FindAll(in string, slice []string, opts ...Option) []Matched {
 	sort.Slice(m, func(i, j int) bool {
 		if m[i].score == m[j].score {
 			return m[i].Idx > m[j].Idx
-		} else {
-			return m[i].score > m[j].score
 		}
+		return m[i].score > m[j].score
 	})
 	return m
 }
