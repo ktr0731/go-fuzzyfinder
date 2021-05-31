@@ -4,7 +4,7 @@ require (
 	github.com/Songmu/gocredits v0.2.0
 	github.com/gdamore/tcell/v2 v2.3.3
 	github.com/golangci/golangci-lint v1.40.1
-	github.com/google/go-cmp v0.5.5
+	github.com/google/go-cmp v0.5.6
 	github.com/google/gofuzz v1.2.0
 	github.com/goreleaser/goreleaser v0.165.0
 	github.com/mattn/go-runewidth v0.0.12
