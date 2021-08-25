@@ -6,6 +6,7 @@ type opt struct {
 	multi        bool
 	hotReload    bool
 	promptString string
+	header       string
 }
 
 type mode int
@@ -68,5 +69,12 @@ func WithPromptString(s string) Option {
 func withMulti() Option {
 	return func(o *opt) {
 		o.multi = true
+	}
+}
+
+// WithHeader enables to set the header.
+func WithHeader(s string) Option {
+	return func(o *opt) {
+		o.header = s
 	}
 }

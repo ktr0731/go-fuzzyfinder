@@ -123,6 +123,8 @@ func (f *finder) _draw() {
 		maxWidth = width/2 - 1
 	}
 
+	maxHeight := height
+
 	// prompt line
 	var promptLinePad int
 
@@ -132,7 +134,7 @@ func (f *finder) _draw() {
 			Foreground(tcell.ColorBlue).
 			Background(tcell.ColorDefault)
 
-		f.term.SetContent(promptLinePad, height-1, r, nil, style)
+		f.term.SetContent(promptLinePad, maxHeight-1, r, nil, style)
 		promptLinePad++
 	}
 	var r rune
@@ -144,10 +146,24 @@ func (f *finder) _draw() {
 			Bold(true)
 
 		// Add a space between '>' and runes.
-		f.term.SetContent(promptLinePad+w, height-1, r, nil, style)
+		f.term.SetContent(promptLinePad+w, maxHeight-1, r, nil, style)
 		w += runewidth.RuneWidth(r)
 	}
-	f.term.ShowCursor(promptLinePad+f.state.cursorX, height-1)
+	f.term.ShowCursor(promptLinePad+f.state.cursorX, maxHeight-1)
+
+	maxHeight -= 1
+
+	// Header line
+	if len(f.opt.header) > 0 {
+		for i, r := range fmt.Sprintf("%s", f.opt.header) {
+			style := tcell.StyleDefault.
+				Foreground(tcell.ColorGreen).
+				Background(tcell.ColorDefault)
+
+			f.term.SetContent(2+i, maxHeight-1, r, nil, style)
+		}
+		maxHeight -= 1
+	}
 
 	// Number line
 	for i, r := range fmt.Sprintf("%d/%d", len(f.state.matched), len(f.state.items)) {
@@ -155,11 +171,12 @@ func (f *finder) _draw() {
 			Foreground(tcell.ColorYellow).
 			Background(tcell.ColorDefault)
 
-		f.term.SetContent(2+i, height-2, r, nil, style)
+		f.term.SetContent(2+i, maxHeight-1, r, nil, style)
 	}
+	maxHeight -= 1
 
 	// Item lines
-	itemAreaHeight := height - 2 - 1
+	itemAreaHeight := maxHeight - 1
 	matched := f.state.matched
 	offset := f.state.cursorY
 	y := f.state.y
@@ -175,8 +192,8 @@ func (f *finder) _draw() {
 				Foreground(tcell.ColorRed).
 				Background(tcell.ColorBlack)
 
-			f.term.SetContent(0, height-3-i, '>', nil, style)
-			f.term.SetContent(1, height-3-i, ' ', nil, style)
+			f.term.SetContent(0, maxHeight-1-i, '>', nil, style)
+			f.term.SetContent(1, maxHeight-1-i, ' ', nil, style)
 		}
 
 		if f.opt.multi {
@@ -185,7 +202,7 @@ func (f *finder) _draw() {
 					Foreground(tcell.ColorRed).
 					Background(tcell.ColorBlack)
 
-				f.term.SetContent(1, height-3-i, '>', nil, style)
+				f.term.SetContent(1, maxHeight-1-i, '>', nil, style)
 			}
 		}
 
@@ -226,11 +243,11 @@ func (f *finder) _draw() {
 			rw := runewidth.RuneWidth(r)
 			// Shorten item cells.
 			if w+rw+2 > maxWidth {
-				f.term.SetContent(w, height-3-i, '.', nil, style)
-				f.term.SetContent(w+1, height-3-i, '.', nil, style)
+				f.term.SetContent(w, maxHeight-1-i, '.', nil, style)
+				f.term.SetContent(w+1, maxHeight-1-i, '.', nil, style)
 				break
 			} else {
-				f.term.SetContent(w, height-3-i, r, nil, style)
+				f.term.SetContent(w, maxHeight-1-i, r, nil, style)
 				w += rw
 			}
 		}

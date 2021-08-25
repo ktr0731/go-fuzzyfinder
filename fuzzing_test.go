@@ -135,10 +135,13 @@ func TestFuzz(t *testing.T) {
 			var (
 				iface     interface{}
 				promptStr string
+				header 	  string
 			)
 			fuzz.Fuzz(&promptStr)
+			fuzz.Fuzz(&header)
 			opts := []fuzzyfinder.Option{
 				fuzzyfinder.WithPromptString(promptStr),
+				fuzzyfinder.WithHeader(header),
 			}
 			if *hotReload {
 				iface = &tracks
