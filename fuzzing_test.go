@@ -135,7 +135,7 @@ func TestFuzz(t *testing.T) {
 			var (
 				iface     interface{}
 				promptStr string
-				header 	  string
+				header    string
 			)
 			fuzz.Fuzz(&promptStr)
 			fuzz.Fuzz(&header)

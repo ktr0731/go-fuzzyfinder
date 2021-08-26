@@ -155,12 +155,13 @@ func (f *finder) _draw() {
 
 	// Header line
 	if len(f.opt.header) > 0 {
-		for i, r := range fmt.Sprintf("%s", f.opt.header) {
+		w = 0
+		for _, r := range []rune(runewidth.Truncate(f.opt.header, maxWidth-3, "...")) {
 			style := tcell.StyleDefault.
 				Foreground(tcell.ColorGreen).
 				Background(tcell.ColorDefault)
-
-			f.term.SetContent(2+i, maxHeight-1, r, nil, style)
+			f.term.SetContent(2+w, maxHeight-1, r, nil, style)
+			w += runewidth.RuneWidth(r)
 		}
 		maxHeight -= 1
 	}
