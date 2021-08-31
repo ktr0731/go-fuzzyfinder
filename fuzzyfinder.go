@@ -156,7 +156,7 @@ func (f *finder) _draw() {
 	// Header line
 	if len(f.opt.header) > 0 {
 		w = 0
-		for _, r := range []rune(runewidth.Truncate(f.opt.header, maxWidth-3, "...")) {
+		for _, r := range []rune(runewidth.Truncate(f.opt.header, maxWidth-2, "..")) {
 			style := tcell.StyleDefault.
 				Foreground(tcell.ColorGreen).
 				Background(tcell.ColorDefault)
