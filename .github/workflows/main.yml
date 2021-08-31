@@ -7,7 +7,7 @@ jobs:
     strategy:
       matrix:
         os: [ubuntu-latest, windows-latest, macOS-latest]
-        go: ['1.14']
+        go: ['1.17']
     steps:
     - name: Set up Go ${{ matrix.go }}
       uses: actions/setup-go@v2.1.4
@@ -30,13 +30,10 @@ jobs:
       run: go build
 
     - name: Test
-      run: go test -v -coverpkg ./... -covermode atomic -coverprofile coverage.txt -tags fuzz -numCases 3000 -numEvents 10 ./...
+      run: go test -coverpkg ./... -covermode atomic -coverprofile coverage.txt -tags fuzz -numCases 3000 -numEvents 10 ./...
 
     - name: Lint
-      uses: golangci/golangci-lint-action@v2.5.2
-      if: matrix.os == 'ubuntu-latest'
-      with:
-        version: v1.33.0
+      run: go vet ./...
 
     - name: Upload coverage to Codecov
       uses: codecov/codecov-action@v2.0.3

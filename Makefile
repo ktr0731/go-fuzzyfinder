@@ -29,18 +29,15 @@ credits:
 
 .PHONY: unit-test
 unit-test: lint
-	go test -v -race ./...
+	go test -race ./...
 
 .PHONY: lint
 lint:
-	golangci-lint run --disable-all \
-		--skip-files 'helper_test.go' \
-		-e 'should have name of the form ErrFoo' -E 'deadcode,govet,golint' \
-		./...
+	go vet ./...
 
 .PHONY: coverage
 coverage:
-	DEBUG=true go test -v -coverpkg ./... -covermode=atomic -coverprofile=coverage.txt -race $(shell go list ./...)
+	DEBUG=true go test -coverpkg ./... -covermode=atomic -coverprofile=coverage.txt -race $(shell go list ./...)
 
 .PHONY: coverage-web
 coverage-web: coverage
