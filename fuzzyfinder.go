@@ -151,7 +151,7 @@ func (f *finder) _draw() {
 	}
 	f.term.ShowCursor(promptLinePad+f.state.cursorX, maxHeight-1)
 
-	maxHeight -= 1
+	maxHeight--
 
 	// Header line
 	if len(f.opt.header) > 0 {
