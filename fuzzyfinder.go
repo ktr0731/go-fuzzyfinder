@@ -163,7 +163,7 @@ func (f *finder) _draw() {
 			f.term.SetContent(2+w, maxHeight-1, r, nil, style)
 			w += runewidth.RuneWidth(r)
 		}
-		maxHeight -= 1
+		maxHeight--
 	}
 
 	// Number line
@@ -174,7 +174,7 @@ func (f *finder) _draw() {
 
 		f.term.SetContent(2+i, maxHeight-1, r, nil, style)
 	}
-	maxHeight -= 1
+	maxHeight--
 
 	// Item lines
 	itemAreaHeight := maxHeight - 1
