@@ -7,6 +7,7 @@ type opt struct {
 	hotReload    bool
 	promptString string
 	header       string
+	beginAtTop   bool
 }
 
 type mode int
@@ -55,6 +56,13 @@ func WithPreviewWindow(f func(i, width, height int) string) Option {
 func WithHotReload() Option {
 	return func(o *opt) {
 		o.hotReload = true
+	}
+}
+
+// WithBeginAtTop makes the selection begin at the top of the list instead of the bottom
+func WithBeginAtTop() Option {
+	return func(o *opt) {
+		o.beginAtTop = true
 	}
 }
 
