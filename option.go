@@ -72,6 +72,8 @@ func WithCursorPosition(position cursorPosition) Option {
 		switch position {
 		case CursorPositionTop:
 			o.beginAtTop = true
+		case CursorPositionBottom:
+			o.beginAtTop = false
 		}
 	}
 }
