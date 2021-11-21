@@ -59,17 +59,20 @@ func WithHotReload() Option {
 	}
 }
 
-// WithBeginAtTop makes the selection begin at the top of the list instead of the bottom
 type cursorPosition int
 
 const (
-  CursorPositionBottom cursorPosition = iota
-  CursorPositionTop
+	CursorPositionBottom cursorPosition = iota
+	CursorPositionTop
 )
 
-func WithCursorPosition(position CursorPosition) Option {
+// WithCursorPosition sets the initial position of the cursor
+func WithCursorPosition(position cursorPosition) Option {
 	return func(o *opt) {
-		o.beginAtTop = true
+		switch position {
+		case CursorPositionTop:
+			o.beginAtTop = true
+		}
 	}
 }
 
