@@ -7,6 +7,7 @@ type opt struct {
 	hotReload    bool
 	promptString string
 	header       string
+	beginAtTop   bool
 }
 
 type mode int
@@ -55,6 +56,25 @@ func WithPreviewWindow(f func(i, width, height int) string) Option {
 func WithHotReload() Option {
 	return func(o *opt) {
 		o.hotReload = true
+	}
+}
+
+type cursorPosition int
+
+const (
+	CursorPositionBottom cursorPosition = iota
+	CursorPositionTop
+)
+
+// WithCursorPosition sets the initial position of the cursor
+func WithCursorPosition(position cursorPosition) Option {
+	return func(o *opt) {
+		switch position {
+		case CursorPositionTop:
+			o.beginAtTop = true
+		case CursorPositionBottom:
+			o.beginAtTop = false
+		}
 	}
 }
 

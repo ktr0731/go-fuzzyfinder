@@ -92,6 +92,12 @@ func (f *finder) initFinder(items []string, matched []matching.Matched, opt opt)
 	f.state.items = items
 	f.state.matched = matched
 	f.state.allMatched = matched
+
+	if opt.beginAtTop {
+		f.state.cursorY = len(f.state.matched) - 1
+		f.state.y = len(f.state.matched) - 1
+	}
+
 	if !isInTesting() {
 		f.drawTimer = time.AfterFunc(0, func() {
 			f._draw()
