@@ -100,8 +100,10 @@ func (f *finder) initFinder(items []string, matched []matching.Matched, opt opt)
 
 	if !isInTesting() {
 		f.drawTimer = time.AfterFunc(0, func() {
+			f.stateMu.Lock()
 			f._draw()
 			f._drawPreview()
+			f.stateMu.Unlock()
 			f.term.Show()
 		})
 		f.drawTimer.Stop()
@@ -578,8 +580,10 @@ func (f *finder) filter() {
 	}
 }
 
-func (f *finder) find(slice interface{}, itemFunc func(i int) string, opts []Option) ([]int, error) {
-	if itemFunc == nil {
+func (f *finder) find(sliceOrFn interface{}, itemFunc func(i int) string, opts []Option) ([]int, error) {
+	rv := reflect.ValueOf(sliceOrFn)
+
+	if itemFunc == nil && rv.Kind() != reflect.Func {
 		return nil, errors.New("itemFunc must not be nil")
 	}
 
@@ -588,11 +592,12 @@ func (f *finder) find(slice interface{}, itemFunc func(i int) string, opts []Opt
 		o(&opt)
 	}
 
-	rv := reflect.ValueOf(slice)
-	if opt.hotReload && (rv.Kind() != reflect.Ptr || reflect.Indirect(rv).Kind() != reflect.Slice) {
-		return nil, errors.Errorf("the first argument must be a pointer to a slice, but got %T", slice)
+	if opt.hotReload &&
+		(rv.Kind() != reflect.Ptr || reflect.Indirect(rv).Kind() != reflect.Slice) &&
+		rv.Kind() != reflect.Func {
+		return nil, errors.Errorf("the first argument must be a pointer to a slice or a function, but got %s", rv.Kind())
 	} else if !opt.hotReload && rv.Kind() != reflect.Slice {
-		return nil, errors.Errorf("the first argument must be a slice, but got %T", slice)
+		return nil, errors.Errorf("the first argument must be a slice, but got %T", sliceOrFn)
 	}
 
 	makeItems := func(sliceLen int) ([]string, []matching.Matched) {
@@ -605,6 +610,17 @@ func (f *finder) find(slice interface{}, itemFunc func(i int) string, opts []Opt
 		return items, matched
 	}
 
+	makeItemsFromValue := func(val reflect.Value) ([]string, []matching.Matched) {
+		items := make([]string, val.Len())
+		matched := make([]matching.Matched, val.Len())
+		for i := 0; i < val.Len(); i++ {
+			items[i] = val.Index(i).String()
+			matched[i] = matching.Matched{Idx: i} //nolint:exhaustivestruct
+		}
+
+		return items, matched
+	}
+
 	var (
 		items   []string
 		matched []matching.Matched
@@ -614,9 +630,14 @@ func (f *finder) find(slice interface{}, itemFunc func(i int) string, opts []Opt
 	defer cancel()
 
 	inited := make(chan struct{})
-	if opt.hotReload && rv.Kind() == reflect.Ptr {
-		rvv := reflect.Indirect(rv)
-		items, matched = makeItems(rvv.Len())
+	if opt.hotReload {
+		if rv.Kind() == reflect.Ptr {
+			rvv := reflect.Indirect(rv)
+			items, matched = makeItems(rvv.Len())
+		} else {
+			rvv := rv.Call(nil)
+			items, matched = makeItemsFromValue(rvv[0])
+		}
 
 		go func() {
 			<-inited
@@ -627,12 +648,16 @@ func (f *finder) find(slice interface{}, itemFunc func(i int) string, opts []Opt
 				case <-ctx.Done():
 					return
 				case <-time.After(30 * time.Millisecond):
-					curr := rvv.Len()
-					if prev != curr {
-						items, matched = makeItems(curr)
-						f.updateItems(items, matched)
+					if rv.Kind() == reflect.Ptr {
+						rvv := reflect.Indirect(rv)
+						curr := rvv.Len()
+						if prev != curr {
+							f.updateItems(makeItems(curr))
+							prev = curr
+						}
+					} else {
+						f.updateItems(makeItemsFromValue(rv.Call(nil)[0]))
 					}
-					prev = curr
 				}
 			}
 		}()
@@ -723,6 +748,20 @@ func (f *finder) Find(slice interface{}, itemFunc func(i int) string, opts ...Op
 		return 0, err
 	}
 	return res[0], err
+}
+
+func (f *finder) Search(itemsFn func() []string, opts ...Option) (int, error) {
+	res, err := f.find(itemsFn, nil, opts)
+
+	if err != nil {
+		return 0, err
+	}
+	return res[0], err
+}
+
+func Search(itemsFn func() []string, opts ...Option) (int, error) {
+	f := newFinder()
+	return f.Search(itemsFn, opts...)
 }
 
 // FindMulti is nearly the same as Find. The only difference from Find is that

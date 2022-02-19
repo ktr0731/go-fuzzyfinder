@@ -2,6 +2,8 @@ module github.com/ktr0731/go-fuzzyfinder/example
 
 go 1.17
 
+replace github.com/ktr0731/go-fuzzyfinder => ../
+
 require (
 	github.com/ktr0731/go-fuzzyfinder v0.5.1
 	github.com/mattn/go-isatty v0.0.14
