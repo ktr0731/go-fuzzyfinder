@@ -1,13 +1,16 @@
 package fuzzyfinder
 
+import "sync"
+
 type opt struct {
-	mode         mode
-	previewFunc  func(i, width, height int) string
-	multi        bool
-	hotReload    bool
-	promptString string
-	header       string
-	beginAtTop   bool
+	mode          mode
+	previewFunc   func(i, width, height int) string
+	multi         bool
+	hotReload     bool
+	hotReloadLock sync.Locker
+	promptString  string
+	header        string
+	beginAtTop    bool
 }
 
 type mode int
@@ -51,11 +54,20 @@ func WithPreviewWindow(f func(i, width, height int) string) Option {
 	}
 }
 
-// WithHotReload reloads the passed slice automatically when some entries are appended.
+// Deprecated: WithHotReload reloads the passed slice automatically when some entries are appended.
 // The caller must pass a pointer of the slice instead of the slice itself.
 func WithHotReload() Option {
 	return func(o *opt) {
 		o.hotReload = true
+	}
+}
+
+// WithHotReloadLock reloads the passed slice automatically when some entries are appended.
+// The caller must pass a pointer of the slice instead of the slice itself.
+func WithHotReloadLock(lock sync.Locker) Option {
+	return func(o *opt) {
+		o.hotReload = true
+		o.hotReloadLock = lock
 	}
 }
 

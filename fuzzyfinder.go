@@ -100,8 +100,10 @@ func (f *finder) initFinder(items []string, matched []matching.Matched, opt opt)
 
 	if !isInTesting() {
 		f.drawTimer = time.AfterFunc(0, func() {
+			f.stateMu.Lock()
 			f._draw()
 			f._drawPreview()
+			f.stateMu.Unlock()
 			f.term.Show()
 		})
 		f.drawTimer.Stop()
@@ -615,8 +617,10 @@ func (f *finder) find(slice interface{}, itemFunc func(i int) string, opts []Opt
 
 	inited := make(chan struct{})
 	if opt.hotReload && rv.Kind() == reflect.Ptr {
+		opt.hotReloadLock.Lock()
 		rvv := reflect.Indirect(rv)
 		items, matched = makeItems(rvv.Len())
+		opt.hotReloadLock.Unlock()
 
 		go func() {
 			<-inited
@@ -627,11 +631,13 @@ func (f *finder) find(slice interface{}, itemFunc func(i int) string, opts []Opt
 				case <-ctx.Done():
 					return
 				case <-time.After(30 * time.Millisecond):
+					opt.hotReloadLock.Lock()
 					curr := rvv.Len()
 					if prev != curr {
 						items, matched = makeItems(curr)
 						f.updateItems(items, matched)
 					}
+					opt.hotReloadLock.Unlock()
 					prev = curr
 				}
 			}
