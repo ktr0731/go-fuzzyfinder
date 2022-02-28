@@ -54,8 +54,10 @@ func WithPreviewWindow(f func(i, width, height int) string) Option {
 	}
 }
 
-// Deprecated: WithHotReload reloads the passed slice automatically when some entries are appended.
+// WithHotReload reloads the passed slice automatically when some entries are appended.
 // The caller must pass a pointer of the slice instead of the slice itself.
+//
+// Deprecated: use WithHotReloadLock instead.
 func WithHotReload() Option {
 	return func(o *opt) {
 		o.hotReload = true
