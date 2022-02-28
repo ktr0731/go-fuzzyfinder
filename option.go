@@ -64,6 +64,7 @@ func WithHotReload() Option {
 
 // WithHotReloadLock reloads the passed slice automatically when some entries are appended.
 // The caller must pass a pointer of the slice instead of the slice itself.
+// The caller MUST NOT lock in the itemFunc passed to Find / FindMulti because it will be locked by the fuzzyfinder.
 func WithHotReloadLock(lock sync.Locker) Option {
 	return func(o *opt) {
 		o.hotReload = true
