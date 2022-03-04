@@ -260,6 +260,40 @@ func TestFind_hotReload(t *testing.T) {
 	})
 }
 
+func TestFind_hotReloadLock(t *testing.T) {
+	f, term := fuzzyfinder.NewWithMockedTerminal()
+	events := append(runes("adrena"), keys(input{tcell.KeyEsc, rune(tcell.KeyEsc), tcell.ModNone})...)
+	term.SetEventsV2(events...)
+
+	var mu sync.RWMutex
+	assertWithGolden(t, func(t *testing.T) string {
+		_, err := f.Find(
+			&tracks,
+			func(i int) string {
+				return tracks[i].Name
+			},
+			fuzzyfinder.WithPreviewWindow(func(i, width, height int) string {
+				// Hack, wait until updateItems is called.
+				time.Sleep(50 * time.Millisecond)
+				mu.RLock()
+				defer mu.RUnlock()
+				if i == -1 {
+					return "not found"
+				}
+				return "Name: " + tracks[i].Name + "\nArtist: " + tracks[i].Artist
+			}),
+			fuzzyfinder.WithMode(fuzzyfinder.ModeCaseSensitive),
+			fuzzyfinder.WithHotReloadLock(mu.RLocker()),
+		)
+		if !errors.Is(err, fuzzyfinder.ErrAbort) {
+			t.Fatalf("Find must return ErrAbort, but got '%s'", err)
+		}
+
+		res := term.GetResult()
+		return res
+	})
+}
+
 func TestFind_enter(t *testing.T) {
 	cases := map[string]struct {
 		events   []tcell.Event

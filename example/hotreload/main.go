@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"sync"
+	"time"
 
 	fuzzyfinder "github.com/ktr0731/go-fuzzyfinder"
 	isatty "github.com/mattn/go-isatty"
@@ -19,10 +21,14 @@ func main() {
 		return
 	}
 	var slice []string
+	var mut sync.RWMutex
 	go func(slice *[]string) {
 		s := bufio.NewScanner(os.Stdin)
 		for s.Scan() {
+			mut.Lock()
 			*slice = append(*slice, s.Text())
+			mut.Unlock()
+			time.Sleep(50 * time.Millisecond) // to give a feeling of how it looks like in the terminal
 		}
 	}(&slice)
 
@@ -31,7 +37,7 @@ func main() {
 		func(i int) string {
 			return slice[i]
 		},
-		fuzzyfinder.WithHotReload(),
+		fuzzyfinder.WithHotReloadLock(mut.RLocker()),
 	)
 	if err != nil {
 		log.Fatal(err)
