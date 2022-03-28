@@ -21,7 +21,7 @@ jobs:
       run: go mod download
 
     - name: Cache modules
-      uses: actions/cache@v2.1.7
+      uses: actions/cache@v3
       with:
         path: ~/go/pkg/mod
         key: ${{ runner.OS }}-go-${{ hashFiles('**/go.sum') }}
