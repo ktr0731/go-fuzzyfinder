@@ -27,6 +27,19 @@ var (
 	errEntered = errors.New("entered")
 )
 
+// Finds the minimum value among the arguments
+func min(vars ...int) int {
+	min := vars[0]
+
+	for _, i := range vars {
+		if min > i {
+			min = i
+		}
+	}
+
+	return min
+}
+
 type state struct {
 	items      []string           // All item names.
 	allMatched []matching.Matched // All items.
@@ -415,6 +428,9 @@ func (f *finder) readKey() error {
 	f.stateMu.Lock()
 	defer f.stateMu.Unlock()
 
+	// Max number of lines to scroll by using PgUp and PgDn
+	const pageScrollBy = 15
+
 	switch e := e.(type) {
 	case *tcell.EventKey:
 		switch e.Key() {
@@ -480,7 +496,7 @@ func (f *finder) readKey() error {
 				f.state.y++
 			}
 			_, height := f.term.Size()
-			if f.state.cursorY+1 < height-2 && f.state.cursorY+1 < len(f.state.matched) {
+			if f.state.cursorY+1 < min(len(f.state.matched), height-2) {
 				f.state.cursorY++
 			}
 		case tcell.KeyDown, tcell.KeyCtrlJ, tcell.KeyCtrlN:
@@ -490,6 +506,21 @@ func (f *finder) readKey() error {
 			if f.state.cursorY-1 >= 0 {
 				f.state.cursorY--
 			}
+		case tcell.KeyPgUp:
+			f.state.y += min(pageScrollBy, len(f.state.matched)-1-f.state.y)
+			_, height := f.term.Size()
+			maxCursorY := min(height-3, len(f.state.matched)-1)
+			f.state.cursorY += min(pageScrollBy, maxCursorY - f.state.cursorY)
+		case tcell.KeyPgDn:
+			f.state.y -= min(pageScrollBy, f.state.y)
+			f.state.cursorY -= min(pageScrollBy, f.state.cursorY)
+		case tcell.KeyHome:
+			f.state.y = len(f.state.matched) - 1
+			_, height := f.term.Size()
+			f.state.cursorY = min(height-3, len(f.state.matched)-1)
+		case tcell.KeyEnd:
+			f.state.y = 0
+			f.state.cursorY = 0
 		case tcell.KeyTab:
 			if !f.opt.multi {
 				return nil
