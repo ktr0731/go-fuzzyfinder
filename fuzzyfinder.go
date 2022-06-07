@@ -428,8 +428,11 @@ func (f *finder) readKey() error {
 	f.stateMu.Lock()
 	defer f.stateMu.Unlock()
 
+	_, screenHeight := f.term.Size()
+	matchedLinesCount := len(f.state.matched)
+
 	// Max number of lines to scroll by using PgUp and PgDn
-	const pageScrollBy = 15
+	var pageScrollBy = screenHeight - 3
 
 	switch e := e.(type) {
 	case *tcell.EventKey:
@@ -492,11 +495,10 @@ func (f *finder) readKey() error {
 			f.state.cursorX = 0
 			f.state.x = 0
 		case tcell.KeyUp, tcell.KeyCtrlK, tcell.KeyCtrlP:
-			if f.state.y+1 < len(f.state.matched) {
+			if f.state.y+1 < matchedLinesCount {
 				f.state.y++
 			}
-			_, height := f.term.Size()
-			if f.state.cursorY+1 < min(len(f.state.matched), height-2) {
+			if f.state.cursorY+1 < min(matchedLinesCount, screenHeight-2) {
 				f.state.cursorY++
 			}
 		case tcell.KeyDown, tcell.KeyCtrlJ, tcell.KeyCtrlN:
@@ -507,17 +509,15 @@ func (f *finder) readKey() error {
 				f.state.cursorY--
 			}
 		case tcell.KeyPgUp:
-			f.state.y += min(pageScrollBy, len(f.state.matched)-1-f.state.y)
-			_, height := f.term.Size()
-			maxCursorY := min(height-3, len(f.state.matched)-1)
-			f.state.cursorY += min(pageScrollBy, maxCursorY - f.state.cursorY)
+			f.state.y += min(pageScrollBy, matchedLinesCount-1-f.state.y)
+			maxCursorY := min(screenHeight-3, matchedLinesCount-1)
+			f.state.cursorY += min(pageScrollBy, maxCursorY-f.state.cursorY)
 		case tcell.KeyPgDn:
 			f.state.y -= min(pageScrollBy, f.state.y)
 			f.state.cursorY -= min(pageScrollBy, f.state.cursorY)
 		case tcell.KeyHome:
-			f.state.y = len(f.state.matched) - 1
-			_, height := f.term.Size()
-			f.state.cursorY = min(height-3, len(f.state.matched)-1)
+			f.state.y = matchedLinesCount - 1
+			f.state.cursorY = min(screenHeight-3, matchedLinesCount-1)
 		case tcell.KeyEnd:
 			f.state.y = 0
 			f.state.cursorY = 0
