@@ -469,10 +469,10 @@ func (f *finder) readKey() error {
 				f.state.cursorX += runewidth.RuneWidth(f.state.input[f.state.x])
 				f.state.x++
 			}
-		case tcell.KeyCtrlA:
+		case tcell.KeyCtrlA, tcell.KeyHome:
 			f.state.cursorX = 0
 			f.state.x = 0
-		case tcell.KeyCtrlE:
+		case tcell.KeyCtrlE, tcell.KeyEnd:
 			f.state.cursorX = runewidth.StringWidth(string(f.state.input))
 			f.state.x = len(f.state.input)
 		case tcell.KeyCtrlW:
@@ -515,12 +515,6 @@ func (f *finder) readKey() error {
 		case tcell.KeyPgDn:
 			f.state.y -= min(pageScrollBy, f.state.y)
 			f.state.cursorY -= min(pageScrollBy, f.state.cursorY)
-		case tcell.KeyHome:
-			f.state.y = matchedLinesCount - 1
-			f.state.cursorY = min(screenHeight-3, matchedLinesCount-1)
-		case tcell.KeyEnd:
-			f.state.y = 0
-			f.state.cursorY = 0
 		case tcell.KeyTab:
 			if !f.opt.multi {
 				return nil
