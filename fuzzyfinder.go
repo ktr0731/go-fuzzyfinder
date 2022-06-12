@@ -8,6 +8,7 @@ import (
 	"flag"
 	"fmt"
 	"reflect"
+	"regexp"
 	"sort"
 	"strings"
 	"sync"
@@ -263,6 +264,67 @@ func (f *finder) _draw() {
 	}
 }
 
+func parseColor(rs *[]rune) (tcell.Color, bool, error) {
+	// only parses for 16 colors
+	re, errCompile := regexp.Compile(`\[[0-9;]*m`)
+	if errCompile != nil {
+		// fallback to default color on error
+		return tcell.ColorDefault, false, errors.Wrap(errCompile, "failed to compile regex")
+	}
+
+	// convert to string for easier parsing
+	str := string(*rs)
+	match, errParse := regexp.MatchString(`\[[0-9;]*m.*`, str)
+	if errParse != nil {
+		// fallback to default color on error
+		return tcell.ColorDefault, false, errors.Wrap(errParse, "failed to parse regex")
+	}
+	if match {
+		// ANSI color value is being passed
+		// find the first match and use it to get a color value
+		ansi := re.FindString(str)
+		bold, err := regexp.MatchString(".*;1m", ansi)
+		if err != nil {
+			return tcell.ColorDefault, false, errors.Wrap(err, "failed to parse regex")
+		}
+
+		// strip color codes (also strips trailing '[0m')
+		stripped := re.ReplaceAllString(str, "")
+		*rs = []rune(stripped)
+
+		black := regexp.MustCompile(`\[30(;1)*m`)
+		red := regexp.MustCompile(`\[31(;1)*m`)
+		green := regexp.MustCompile(`\[32(;1)*m`)
+		yellow := regexp.MustCompile(`\[33(;1)*m`)
+		blue := regexp.MustCompile(`\[34(;1)*m`)
+		magenta := regexp.MustCompile(`\[35(;1)*m`)
+		cyan := regexp.MustCompile(`\[36(;1)*m`)
+		white := regexp.MustCompile(`\[37(;1)*m`)
+
+		switch {
+		case black.MatchString(ansi):
+			return tcell.ColorBlack, bold, nil
+		case red.MatchString(ansi):
+			return tcell.ColorRed, bold, nil
+		case green.MatchString(ansi):
+			return tcell.ColorGreen, bold, nil
+		case yellow.MatchString(ansi):
+			return tcell.ColorYellow, bold, nil
+		case blue.MatchString(ansi):
+			return tcell.ColorBlue, bold, nil
+		case magenta.MatchString(ansi):
+			return tcell.ColorDarkMagenta, bold, nil
+		case cyan.MatchString(ansi):
+			return tcell.ColorDarkCyan, bold, nil
+		case white.MatchString(ansi):
+			return tcell.ColorWhite, bold, nil
+		}
+	}
+
+	// no color value passsed, return default color
+	return tcell.ColorDefault, false, nil
+}
+
 func (f *finder) _drawPreview() {
 	if f.opt.previewFunc == nil {
 		return
@@ -354,6 +416,8 @@ func (f *finder) _drawPreview() {
 				}
 				j := i - width/2 - 2 // Two spaces.
 				l := prevLines[h-1]
+				// parse colors here and strip color codes from runes
+				col, isBold, _ := parseColor(&l)
 				if j >= len(l) {
 					w++
 					continue
@@ -372,8 +436,9 @@ func (f *finder) _drawPreview() {
 				}
 
 				style := tcell.StyleDefault.
-					Foreground(tcell.ColorDefault).
-					Background(tcell.ColorDefault)
+					Foreground(col).
+					Background(tcell.ColorDefault).
+					Bold(isBold)
 				f.term.SetContent(w, h, l[j], nil, style)
 				w += rw
 			}
