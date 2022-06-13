@@ -27,6 +27,19 @@ var (
 	errEntered = errors.New("entered")
 )
 
+// Finds the minimum value among the arguments
+func min(vars ...int) int {
+	min := vars[0]
+
+	for _, i := range vars {
+		if min > i {
+			min = i
+		}
+	}
+
+	return min
+}
+
 type state struct {
 	items      []string           // All item names.
 	allMatched []matching.Matched // All items.
@@ -415,6 +428,12 @@ func (f *finder) readKey() error {
 	f.stateMu.Lock()
 	defer f.stateMu.Unlock()
 
+	_, screenHeight := f.term.Size()
+	matchedLinesCount := len(f.state.matched)
+
+	// Max number of lines to scroll by using PgUp and PgDn
+	var pageScrollBy = screenHeight - 3
+
 	switch e := e.(type) {
 	case *tcell.EventKey:
 		switch e.Key() {
@@ -450,10 +469,10 @@ func (f *finder) readKey() error {
 				f.state.cursorX += runewidth.RuneWidth(f.state.input[f.state.x])
 				f.state.x++
 			}
-		case tcell.KeyCtrlA:
+		case tcell.KeyCtrlA, tcell.KeyHome:
 			f.state.cursorX = 0
 			f.state.x = 0
-		case tcell.KeyCtrlE:
+		case tcell.KeyCtrlE, tcell.KeyEnd:
 			f.state.cursorX = runewidth.StringWidth(string(f.state.input))
 			f.state.x = len(f.state.input)
 		case tcell.KeyCtrlW:
@@ -476,11 +495,10 @@ func (f *finder) readKey() error {
 			f.state.cursorX = 0
 			f.state.x = 0
 		case tcell.KeyUp, tcell.KeyCtrlK, tcell.KeyCtrlP:
-			if f.state.y+1 < len(f.state.matched) {
+			if f.state.y+1 < matchedLinesCount {
 				f.state.y++
 			}
-			_, height := f.term.Size()
-			if f.state.cursorY+1 < height-2 && f.state.cursorY+1 < len(f.state.matched) {
+			if f.state.cursorY+1 < min(matchedLinesCount, screenHeight-2) {
 				f.state.cursorY++
 			}
 		case tcell.KeyDown, tcell.KeyCtrlJ, tcell.KeyCtrlN:
@@ -490,6 +508,13 @@ func (f *finder) readKey() error {
 			if f.state.cursorY-1 >= 0 {
 				f.state.cursorY--
 			}
+		case tcell.KeyPgUp:
+			f.state.y += min(pageScrollBy, matchedLinesCount-1-f.state.y)
+			maxCursorY := min(screenHeight-3, matchedLinesCount-1)
+			f.state.cursorY += min(pageScrollBy, maxCursorY-f.state.cursorY)
+		case tcell.KeyPgDn:
+			f.state.y -= min(pageScrollBy, f.state.y)
+			f.state.cursorY -= min(pageScrollBy, f.state.cursorY)
 		case tcell.KeyTab:
 			if !f.opt.multi {
 				return nil
