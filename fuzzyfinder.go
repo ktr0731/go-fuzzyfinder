@@ -24,8 +24,9 @@ import (
 
 var (
 	// ErrAbort is returned from Find* functions if there are no selections.
-	ErrAbort   = errors.New("abort")
-	errEntered = errors.New("entered")
+	ErrAbort       = errors.New("abort")
+	errEntered     = errors.New("entered")
+	colorsRegex, _ = regexp.Compile(`\[[0-9;]*m`)
 )
 
 type state struct {
@@ -266,63 +267,49 @@ func (f *finder) _draw() {
 
 func parseColor(rs *[]rune) (tcell.Color, bool, error) {
 	// only parses for 16 colors
-	re, errCompile := regexp.Compile(`\[[0-9;]*m`)
-	if errCompile != nil {
-		// fallback to default color on error
-		return tcell.ColorDefault, false, errors.Wrap(errCompile, "failed to compile regex")
-	}
-
 	// convert to string for easier parsing
 	str := string(*rs)
-	match, errParse := regexp.MatchString(`\[[0-9;]*m.*`, str)
-	if errParse != nil {
-		// fallback to default color on error
-		return tcell.ColorDefault, false, errors.Wrap(errParse, "failed to parse regex")
-	}
-	if match {
-		// ANSI color value is being passed
-		// find the first match and use it to get a color value
-		ansi := re.FindString(str)
-		bold, err := regexp.MatchString(".*;1m", ansi)
-		if err != nil {
-			return tcell.ColorDefault, false, errors.Wrap(err, "failed to parse regex")
-		}
+	ansi := colorsRegex.FindStringSubmatch(str)
+	var bold bool
 
-		// strip color codes (also strips trailing '[0m')
-		stripped := re.ReplaceAllString(str, "")
-		*rs = []rune(stripped)
-
-		black := regexp.MustCompile(`\[30(;1)*m`)
-		red := regexp.MustCompile(`\[31(;1)*m`)
-		green := regexp.MustCompile(`\[32(;1)*m`)
-		yellow := regexp.MustCompile(`\[33(;1)*m`)
-		blue := regexp.MustCompile(`\[34(;1)*m`)
-		magenta := regexp.MustCompile(`\[35(;1)*m`)
-		cyan := regexp.MustCompile(`\[36(;1)*m`)
-		white := regexp.MustCompile(`\[37(;1)*m`)
-
-		switch {
-		case black.MatchString(ansi):
-			return tcell.ColorBlack, bold, nil
-		case red.MatchString(ansi):
-			return tcell.ColorRed, bold, nil
-		case green.MatchString(ansi):
-			return tcell.ColorGreen, bold, nil
-		case yellow.MatchString(ansi):
-			return tcell.ColorYellow, bold, nil
-		case blue.MatchString(ansi):
-			return tcell.ColorBlue, bold, nil
-		case magenta.MatchString(ansi):
-			return tcell.ColorDarkMagenta, bold, nil
-		case cyan.MatchString(ansi):
-			return tcell.ColorDarkCyan, bold, nil
-		case white.MatchString(ansi):
-			return tcell.ColorWhite, bold, nil
-		}
+	if len(ansi) == 0 {
+		// no color is being passed, return defaults
+		return tcell.ColorDefault, false, nil
 	}
 
-	// no color value passsed, return default color
-	return tcell.ColorDefault, false, nil
+	// ANSI color value is being passed
+	// find if bold is specified
+	if len(ansi[0]) > 4 && ansi[0][3:5] == ";1" {
+		bold = true
+	}
+
+	// find the color value
+	color := ansi[0][1:3]
+
+	// strip color codes (also strips trailing '[0m')
+	stripped := colorsRegex.ReplaceAllString(str, "")
+	*rs = []rune(stripped)
+
+	switch color {
+	case "30":
+		return tcell.ColorBlack, bold, nil
+	case "31":
+		return tcell.ColorRed, bold, nil
+	case "32":
+		return tcell.ColorGreen, bold, nil
+	case "33":
+		return tcell.ColorYellow, bold, nil
+	case "34":
+		return tcell.ColorBlue, bold, nil
+	case "35":
+		return tcell.ColorDarkMagenta, bold, nil
+	case "36":
+		return tcell.ColorDarkCyan, bold, nil
+	case "37":
+		return tcell.ColorWhite, bold, nil
+	default:
+		return tcell.ColorDefault, bold, nil
+	}
 }
 
 func (f *finder) _drawPreview() {
