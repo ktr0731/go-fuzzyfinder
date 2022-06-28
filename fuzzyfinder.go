@@ -24,9 +24,9 @@ import (
 
 var (
 	// ErrAbort is returned from Find* functions if there are no selections.
-	ErrAbort       = errors.New("abort")
-	errEntered     = errors.New("entered")
-	colorsRegex, _ = regexp.Compile(`\[[0-9;]*m`)
+	ErrAbort    = errors.New("abort")
+	errEntered  = errors.New("entered")
+	colorsRegex = regexp.MustCompile(`\[[0-9;]*m`)
 )
 
 type state struct {
@@ -265,7 +265,7 @@ func (f *finder) _draw() {
 	}
 }
 
-func parseColor(rs *[]rune) (tcell.Color, bool, error) {
+func parseColor(rs *[]rune) (tcell.Color, bool) {
 	// only parses for 16 colors
 	// convert to string for easier parsing
 	str := string(*rs)
@@ -274,7 +274,7 @@ func parseColor(rs *[]rune) (tcell.Color, bool, error) {
 
 	if len(ansi) == 0 {
 		// no color is being passed, return defaults
-		return tcell.ColorDefault, false, nil
+		return tcell.ColorDefault, false
 	}
 
 	// ANSI color value is being passed
@@ -292,23 +292,23 @@ func parseColor(rs *[]rune) (tcell.Color, bool, error) {
 
 	switch color {
 	case "30":
-		return tcell.ColorBlack, bold, nil
+		return tcell.ColorBlack, bold
 	case "31":
-		return tcell.ColorRed, bold, nil
+		return tcell.ColorRed, bold
 	case "32":
-		return tcell.ColorGreen, bold, nil
+		return tcell.ColorGreen, bold
 	case "33":
-		return tcell.ColorYellow, bold, nil
+		return tcell.ColorYellow, bold
 	case "34":
-		return tcell.ColorBlue, bold, nil
+		return tcell.ColorBlue, bold
 	case "35":
-		return tcell.ColorDarkMagenta, bold, nil
+		return tcell.ColorDarkMagenta, bold
 	case "36":
-		return tcell.ColorDarkCyan, bold, nil
+		return tcell.ColorDarkCyan, bold
 	case "37":
-		return tcell.ColorWhite, bold, nil
+		return tcell.ColorWhite, bold
 	default:
-		return tcell.ColorDefault, bold, nil
+		return tcell.ColorDefault, bold
 	}
 }
 
@@ -404,7 +404,7 @@ func (f *finder) _drawPreview() {
 				j := i - width/2 - 2 // Two spaces.
 				l := prevLines[h-1]
 				// parse colors here and strip color codes from runes
-				col, isBold, _ := parseColor(&l)
+				col, isBold := parseColor(&l)
 				if j >= len(l) {
 					w++
 					continue
