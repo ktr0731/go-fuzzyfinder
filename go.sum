@@ -1,7 +1,7 @@
 github.com/gdamore/encoding v1.0.0 h1:+7OoQ1Bc6eTm5niUzBa0Ctsh6JbMW6Ra+YNuAtDBdko=
 github.com/gdamore/encoding v1.0.0/go.mod h1:alR0ol34c49FCSBLjhosxzcPHQbf2trDkoo5dl+VrEg=
-github.com/gdamore/tcell/v2 v2.5.2 h1:tKzG29kO9p2V++3oBY2W9zUjYu7IK1MENFeY/BzJSVY=
-github.com/gdamore/tcell/v2 v2.5.2/go.mod h1:wSkrPaXoiIWZqW/g7Px4xc79di6FTcpB8tvaKJ6uGBo=
+github.com/gdamore/tcell/v2 v2.5.3 h1:b9XQrT6QGbgI7JvZOJXFNczOQeIYbo8BfeSMzt2sAV0=
+github.com/gdamore/tcell/v2 v2.5.3/go.mod h1:wSkrPaXoiIWZqW/g7Px4xc79di6FTcpB8tvaKJ6uGBo=
 github.com/google/go-cmp v0.5.8 h1:e6P7q2lk1O+qJJb4BtCQXlK8vWEO8V1ZeuEdJNOqZyg=
 github.com/google/go-cmp v0.5.8/go.mod h1:17dUlkBOakJ0+DkrSSNjCkIjxS6bF9zb3elmeNGIjoY=
 github.com/google/gofuzz v1.2.0 h1:xRy4A+RhZaiKjJ1bPfwQ8sedCA+YS2YcCHW6ec7JMi0=
