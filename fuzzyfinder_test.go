@@ -118,6 +118,8 @@ func TestReal(t *testing.T) {
 }
 
 func TestFind(t *testing.T) {
+	t.Parallel()
+
 	cases := map[string]struct {
 		events []tcell.Event
 	}{
@@ -193,6 +195,8 @@ func TestFind(t *testing.T) {
 		c := c
 
 		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+
 			events := c.events
 
 			f, term := fuzzyfinder.NewWithMockedTerminal()
@@ -225,6 +229,8 @@ func TestFind(t *testing.T) {
 }
 
 func TestFind_hotReload(t *testing.T) {
+	t.Parallel()
+
 	f, term := fuzzyfinder.NewWithMockedTerminal()
 	events := append(runes("adrena"), keys(input{tcell.KeyEsc, rune(tcell.KeyEsc), tcell.ModNone})...)
 	term.SetEventsV2(events...)
@@ -261,6 +267,8 @@ func TestFind_hotReload(t *testing.T) {
 }
 
 func TestFind_hotReloadLock(t *testing.T) {
+	t.Parallel()
+
 	f, term := fuzzyfinder.NewWithMockedTerminal()
 	events := append(runes("adrena"), keys(input{tcell.KeyEsc, rune(tcell.KeyEsc), tcell.ModNone})...)
 	term.SetEventsV2(events...)
@@ -295,6 +303,8 @@ func TestFind_hotReloadLock(t *testing.T) {
 }
 
 func TestFind_enter(t *testing.T) {
+	t.Parallel()
+
 	cases := map[string]struct {
 		events   []tcell.Event
 		expected int
@@ -307,6 +317,8 @@ func TestFind_enter(t *testing.T) {
 		c := c
 
 		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+
 			events := c.events
 
 			f, term := fuzzyfinder.NewWithMockedTerminal()
@@ -331,7 +343,11 @@ func TestFind_enter(t *testing.T) {
 }
 
 func TestFind_error(t *testing.T) {
+	t.Parallel()
+
 	t.Run("not a slice", func(t *testing.T) {
+		t.Parallel()
+
 		f := fuzzyfinder.New()
 		_, err := f.Find("", func(i int) string { return "" })
 		if err == nil {
@@ -340,6 +356,8 @@ func TestFind_error(t *testing.T) {
 	})
 
 	t.Run("itemFunc is nil", func(t *testing.T) {
+		t.Parallel()
+
 		f := fuzzyfinder.New()
 		_, err := f.Find([]string{}, nil)
 		if err == nil {
@@ -349,6 +367,8 @@ func TestFind_error(t *testing.T) {
 }
 
 func TestFindMulti(t *testing.T) {
+	t.Parallel()
+
 	cases := map[string]struct {
 		events   []tcell.Event
 		expected []int
@@ -378,6 +398,8 @@ func TestFindMulti(t *testing.T) {
 		c := c
 
 		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+
 			events := c.events
 
 			f, term := fuzzyfinder.NewWithMockedTerminal()
