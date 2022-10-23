@@ -3,6 +3,8 @@ package scoring
 import "testing"
 
 func TestCalculate(t *testing.T) {
+	t.Parallel()
+
 	cases := map[string]struct {
 		s1, s2    string
 		willPanic bool
@@ -25,6 +27,8 @@ func TestCalculate(t *testing.T) {
 }
 
 func Test_max(t *testing.T) {
+	t.Parallel()
+
 	if n := max(); n != 0 {
 		t.Errorf("max must return 0 if no args, but got %d", n)
 	}

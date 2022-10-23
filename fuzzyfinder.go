@@ -8,7 +8,6 @@ import (
 	"flag"
 	"fmt"
 	"reflect"
-	"regexp"
 	"sort"
 	"strings"
 	"sync"
@@ -25,9 +24,8 @@ import (
 
 var (
 	// ErrAbort is returned from Find* functions if there are no selections.
-	ErrAbort    = errors.New("abort")
-	errEntered  = errors.New("entered")
-	colorsRegex = regexp.MustCompile(`\[[0-9;]*m`)
+	ErrAbort   = errors.New("abort")
+	errEntered = errors.New("entered")
 )
 
 // Finds the minimum value among the arguments
@@ -152,8 +150,7 @@ func (f *finder) _draw() {
 	// prompt line
 	var promptLinePad int
 
-	//nolint:staticcheck
-	for _, r := range []rune(f.opt.promptString) {
+	for _, r := range f.opt.promptString {
 		style := tcell.StyleDefault.
 			Foreground(tcell.ColorBlue).
 			Background(tcell.ColorDefault)
@@ -180,7 +177,7 @@ func (f *finder) _draw() {
 	// Header line
 	if len(f.opt.header) > 0 {
 		w = 0
-		for _, r := range []rune(runewidth.Truncate(f.opt.header, maxWidth-2, "..")) {
+		for _, r := range runewidth.Truncate(f.opt.header, maxWidth-2, "..") {
 			style := tcell.StyleDefault.
 				Foreground(tcell.ColorGreen).
 				Background(tcell.ColorDefault)
@@ -276,53 +273,6 @@ func (f *finder) _draw() {
 				w += rw
 			}
 		}
-	}
-}
-
-func parseColor(rs *[]rune) (tcell.Color, bool) {
-	// only parses for 16 colors
-	// convert to string for easier parsing
-	str := string(*rs)
-	ansi := colorsRegex.FindStringSubmatch(str)
-	var bold bool
-
-	if len(ansi) == 0 {
-		// no color is being passed, return defaults
-		return tcell.ColorDefault, false
-	}
-
-	// ANSI color value is being passed
-	// find if bold is specified
-	if len(ansi[0]) > 4 && ansi[0][3:5] == ";1" {
-		bold = true
-	}
-
-	// find the color value
-	color := ansi[0][1:3]
-
-	// strip color codes (also strips trailing '[0m')
-	stripped := colorsRegex.ReplaceAllString(str, "")
-	*rs = []rune(stripped)
-
-	switch color {
-	case "30":
-		return tcell.ColorBlack, bold
-	case "31":
-		return tcell.ColorRed, bold
-	case "32":
-		return tcell.ColorGreen, bold
-	case "33":
-		return tcell.ColorYellow, bold
-	case "34":
-		return tcell.ColorBlue, bold
-	case "35":
-		return tcell.ColorDarkMagenta, bold
-	case "36":
-		return tcell.ColorDarkCyan, bold
-	case "37":
-		return tcell.ColorWhite, bold
-	default:
-		return tcell.ColorDefault, bold
 	}
 }
 

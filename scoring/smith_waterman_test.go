@@ -7,6 +7,8 @@ import (
 )
 
 func Test_smithWaterman(t *testing.T) {
+	t.Parallel()
+
 	old := os.Getenv("DEBUG")
 	os.Setenv("DEBUG", "true")
 	defer os.Setenv("DEBUG", old)
@@ -25,6 +27,8 @@ func Test_smithWaterman(t *testing.T) {
 		c := c
 		name := fmt.Sprintf("%s-%s", c.s1, c.s2)
 		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+
 			score, pos := smithWaterman([]rune(c.s1), []rune(c.s2))
 			if score != c.expectedScore {
 				t.Errorf("expected 78, but got %d", score)
