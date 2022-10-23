@@ -400,6 +400,51 @@ func TestFind_enter(t *testing.T) {
 	}
 }
 
+func TestFind_WithPreviewWindow(t *testing.T) {
+	t.Parallel()
+
+	cases := map[string]struct {
+		previewString string
+	}{
+		"normal":                   {previewString: "foo"},
+		"multiline":                {previewString: "foo\nbar"},
+		"overflowed line":          {previewString: strings.Repeat("foo", 1000)},
+		"SGR":                      {previewString: "a\x1b[1mb\x1b[0;31mc\x1b[0;42md\x1b[0;38;5;139me\x1b[0;48;5;229mf\x1b[0;38;2;10;200;30mg\x1b[0;48;2;255;200;100mh"},
+		"SGR with overflowed line": {previewString: "a\x1b[1mb\x1b[0;31mc\x1b[0;42md\x1b[0;38;5;139me\x1b[0;48;5;229mf\x1b[0;38;2;10;200;30mg\x1b[0;48;2;255;200;100mh\x1b[m" + strings.Repeat("foo", 1000)},
+	}
+
+	for name, c := range cases {
+		c := c
+
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+
+			f, term := fuzzyfinder.NewWithMockedTerminal()
+			events := []tcell.Event{key(input{tcell.KeyEnter, rune(tcell.KeyEnter), tcell.ModNone})}
+			term.SetEventsV2(events...)
+
+			assertWithGolden(t, func(t *testing.T) string {
+				_, err := f.Find(
+					tracks,
+					func(i int) string {
+						return tracks[i].Name
+					},
+					fuzzyfinder.WithPreviewWindow(func(i, w, h int) string {
+						return c.previewString
+					}),
+				)
+
+				if err != nil {
+					t.Fatalf("Find must not return an error, but got '%s'", err)
+				}
+
+				res := term.GetResult()
+				return res
+			})
+		})
+	}
+}
+
 func TestFind_error(t *testing.T) {
 	t.Parallel()
 

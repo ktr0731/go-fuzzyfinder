@@ -8,6 +8,8 @@ import (
 )
 
 func TestMatch(t *testing.T) {
+	t.Parallel()
+
 	cases := map[string]struct {
 		idx           int
 		in            string
@@ -26,6 +28,8 @@ func TestMatch(t *testing.T) {
 	for name, c := range cases {
 		c := c
 		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+
 			var matched []matching.Matched
 			if c.caseSensitive {
 				matched = matching.FindAll(c.in, slice, matching.WithMode(matching.ModeCaseSensitive))

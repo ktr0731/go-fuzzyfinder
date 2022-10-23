@@ -83,7 +83,7 @@ func match(input string, slice []string, opt opt) (res []Matched) {
 			s = strings.ToLower(s)
 		}
 	LINE_MATCHING:
-		for _, r := range []rune(s) { //nolint:staticcheck
+		for _, r := range s {
 			if r == in[idx] {
 				idx++
 				if idx == len(in) {

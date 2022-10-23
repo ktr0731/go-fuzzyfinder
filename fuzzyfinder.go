@@ -8,7 +8,6 @@ import (
 	"flag"
 	"fmt"
 	"reflect"
-	"regexp"
 	"sort"
 	"strings"
 	"sync"
@@ -17,6 +16,7 @@ import (
 	"unicode/utf8"
 
 	"github.com/gdamore/tcell/v2"
+	"github.com/ktr0731/go-ansisgr"
 	"github.com/ktr0731/go-fuzzyfinder/matching"
 	runewidth "github.com/mattn/go-runewidth"
 	"github.com/pkg/errors"
@@ -24,9 +24,8 @@ import (
 
 var (
 	// ErrAbort is returned from Find* functions if there are no selections.
-	ErrAbort    = errors.New("abort")
-	errEntered  = errors.New("entered")
-	colorsRegex = regexp.MustCompile(`\[[0-9;]*m`)
+	ErrAbort   = errors.New("abort")
+	errEntered = errors.New("entered")
 )
 
 // Finds the minimum value among the arguments
@@ -151,8 +150,7 @@ func (f *finder) _draw() {
 	// prompt line
 	var promptLinePad int
 
-	//nolint:staticcheck
-	for _, r := range []rune(f.opt.promptString) {
+	for _, r := range f.opt.promptString {
 		style := tcell.StyleDefault.
 			Foreground(tcell.ColorBlue).
 			Background(tcell.ColorDefault)
@@ -179,7 +177,7 @@ func (f *finder) _draw() {
 	// Header line
 	if len(f.opt.header) > 0 {
 		w = 0
-		for _, r := range []rune(runewidth.Truncate(f.opt.header, maxWidth-2, "..")) {
+		for _, r := range runewidth.Truncate(f.opt.header, maxWidth-2, "..") {
 			style := tcell.StyleDefault.
 				Foreground(tcell.ColorGreen).
 				Background(tcell.ColorDefault)
@@ -278,53 +276,6 @@ func (f *finder) _draw() {
 	}
 }
 
-func parseColor(rs *[]rune) (tcell.Color, bool) {
-	// only parses for 16 colors
-	// convert to string for easier parsing
-	str := string(*rs)
-	ansi := colorsRegex.FindStringSubmatch(str)
-	var bold bool
-
-	if len(ansi) == 0 {
-		// no color is being passed, return defaults
-		return tcell.ColorDefault, false
-	}
-
-	// ANSI color value is being passed
-	// find if bold is specified
-	if len(ansi[0]) > 4 && ansi[0][3:5] == ";1" {
-		bold = true
-	}
-
-	// find the color value
-	color := ansi[0][1:3]
-
-	// strip color codes (also strips trailing '[0m')
-	stripped := colorsRegex.ReplaceAllString(str, "")
-	*rs = []rune(stripped)
-
-	switch color {
-	case "30":
-		return tcell.ColorBlack, bold
-	case "31":
-		return tcell.ColorRed, bold
-	case "32":
-		return tcell.ColorGreen, bold
-	case "33":
-		return tcell.ColorYellow, bold
-	case "34":
-		return tcell.ColorBlue, bold
-	case "35":
-		return tcell.ColorDarkMagenta, bold
-	case "36":
-		return tcell.ColorDarkCyan, bold
-	case "37":
-		return tcell.ColorWhite, bold
-	default:
-		return tcell.ColorDefault, bold
-	}
-}
-
 func (f *finder) _drawPreview() {
 	if f.opt.previewFunc == nil {
 		return
@@ -338,11 +289,7 @@ func (f *finder) _drawPreview() {
 		idx = f.state.matched[f.state.y].Idx
 	}
 
-	sp := strings.Split(f.opt.previewFunc(idx, width, height), "\n")
-	prevLines := make([][]rune, 0, len(sp))
-	for _, s := range sp {
-		prevLines = append(prevLines, []rune(s))
-	}
+	iter := ansisgr.NewIterator(f.opt.previewFunc(idx, width, height))
 
 	// top line
 	for i := width / 2; i < width; i++ {
@@ -384,6 +331,8 @@ func (f *finder) _drawPreview() {
 	const vline = '│'
 	var wvline = runewidth.RuneWidth(vline)
 	for h := 1; h < height-1; h++ {
+		// donePreviewLine indicates the preview string of the current line identified by h is already drawn.
+		var donePreviewLine bool
 		w := width / 2
 		for i := width / 2; i < width; i++ {
 			switch {
@@ -410,20 +359,24 @@ func (f *finder) _drawPreview() {
 				f.term.SetContent(w, h, ' ', nil, style)
 				w++
 			default: // Preview text
-				if h-1 >= len(prevLines) {
-					w++
+				if donePreviewLine {
 					continue
 				}
-				j := i - width/2 - 2 // Two spaces.
-				l := prevLines[h-1]
-				// parse colors here and strip color codes from runes
-				col, isBold := parseColor(&l)
-				if j >= len(l) {
-					w++
+
+				r, rstyle, ok := iter.Next()
+				if !ok || r == '\n' {
+					// Consumed all preview characters.
+					donePreviewLine = true
 					continue
 				}
-				rw := runewidth.RuneWidth(l[j])
+
+				rw := runewidth.RuneWidth(r)
 				if w+rw > width-1-2 {
+					donePreviewLine = true
+
+					// Discard the rest of the current line.
+					consumeIterator(iter, '\n')
+
 					style := tcell.StyleDefault.
 						Foreground(tcell.ColorDefault).
 						Background(tcell.ColorDefault)
@@ -435,11 +388,39 @@ func (f *finder) _drawPreview() {
 					continue
 				}
 
-				style := tcell.StyleDefault.
-					Foreground(col).
-					Background(tcell.ColorDefault).
-					Bold(isBold)
-				f.term.SetContent(w, h, l[j], nil, style)
+				style := tcell.StyleDefault
+				if color, ok := rstyle.Foreground(); ok {
+					switch color.Mode() {
+					case ansisgr.Mode16:
+						style = style.Foreground(tcell.PaletteColor(color.Value() - 30))
+					case ansisgr.Mode256:
+						style = style.Foreground(tcell.PaletteColor(color.Value()))
+					case ansisgr.ModeRGB:
+						r, g, b := color.RGB()
+						style = style.Foreground(tcell.NewRGBColor(int32(r), int32(g), int32(b)))
+					}
+				}
+				if color, valid := rstyle.Background(); valid {
+					switch color.Mode() {
+					case ansisgr.Mode16:
+						style = style.Background(tcell.PaletteColor(color.Value() - 40))
+					case ansisgr.Mode256:
+						style = style.Background(tcell.PaletteColor(color.Value()))
+					case ansisgr.ModeRGB:
+						r, g, b := color.RGB()
+						style = style.Background(tcell.NewRGBColor(int32(r), int32(g), int32(b)))
+					}
+				}
+
+				style = style.
+					Bold(rstyle.Bold()).
+					Dim(rstyle.Dim()).
+					Italic(rstyle.Italic()).
+					Underline(rstyle.Underline()).
+					Blink(rstyle.Blink()).
+					Reverse(rstyle.Reverse()).
+					StrikeThrough(rstyle.Strikethrough())
+				f.term.SetContent(w, h, r, nil, style)
 				w += rw
 			}
 		}
@@ -823,4 +804,13 @@ func (f *finder) FindMulti(slice interface{}, itemFunc func(i int) string, opts 
 
 func isInTesting() bool {
 	return flag.Lookup("test.v") != nil
+}
+
+func consumeIterator(iter *ansisgr.Iterator, r rune) {
+	for {
+		r, _, ok := iter.Next()
+		if !ok || r == '\n' {
+			return
+		}
+	}
 }
