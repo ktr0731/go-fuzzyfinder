@@ -118,86 +118,154 @@ func TestReal(t *testing.T) {
 }
 
 func TestFind(t *testing.T) {
+	t.Parallel()
+
 	cases := map[string]struct {
 		events []tcell.Event
+		opts   []fuzzyfinder.Option
 	}{
 		"initial":    {},
-		"input lo":   {runes("lo")},
-		"input glow": {runes("glow")},
-		"arrow up-down": {keys([]input{
-			{tcell.KeyUp, rune(tcell.KeyUp), tcell.ModNone},
-			{tcell.KeyUp, rune(tcell.KeyUp), tcell.ModNone},
-			{tcell.KeyDown, rune(tcell.KeyDown), tcell.ModNone},
-		}...)},
-		"arrow left-right": {append(runes("ゆるふわ樹海"), keys([]input{
-			{tcell.KeyLeft, rune(tcell.KeyLeft), tcell.ModNone},
-			{tcell.KeyLeft, rune(tcell.KeyLeft), tcell.ModNone},
-			{tcell.KeyRight, rune(tcell.KeyRight), tcell.ModNone},
-		}...)...)},
-		"backspace": {append(runes("adr .-"), keys([]input{
-			{tcell.KeyBackspace, rune(tcell.KeyBackspace), tcell.ModNone},
-			{tcell.KeyBackspace, rune(tcell.KeyBackspace), tcell.ModNone},
-		}...)...)},
-		"backspace empty": {keys(input{tcell.KeyBackspace2, rune(tcell.KeyBackspace2), tcell.ModNone})},
-		"backspace2": {append(runes("オレンジ"), keys([]input{
-			{tcell.KeyBackspace2, rune(tcell.KeyBackspace2), tcell.ModNone},
-			{tcell.KeyBackspace2, rune(tcell.KeyBackspace2), tcell.ModNone},
-		}...)...)},
-		"arrow left backspace": {append(runes("オレンジ"), keys([]input{
-			{tcell.KeyLeft, rune(tcell.KeyLeft), tcell.ModNone},
-			{tcell.KeyBackspace, rune(tcell.KeyBackspace), tcell.ModNone},
-		}...)...)},
-		"delete": {append(runes("オレンジ"), keys([]input{
-			{tcell.KeyCtrlA, 'A', tcell.ModCtrl},
-			{tcell.KeyDelete, rune(tcell.KeyDelete), tcell.ModNone},
-		}...)...)},
-		"delete empty": {keys([]input{
-			{tcell.KeyCtrlA, 'A', tcell.ModCtrl},
-			{tcell.KeyDelete, rune(tcell.KeyDelete), tcell.ModNone},
-		}...)},
-		"ctrl-e": {append(runes("恋をしたのは"), keys([]input{
-			{tcell.KeyCtrlA, 'A', tcell.ModCtrl},
-			{tcell.KeyCtrlE, 'E', tcell.ModCtrl},
-		}...)...)},
-		"ctrl-w":       {append(runes("ハロ / ハワユ"), keys(input{tcell.KeyCtrlW, 'W', tcell.ModCtrl})...)},
-		"ctrl-w empty": {keys(input{tcell.KeyCtrlW, 'W', tcell.ModCtrl})},
-		"ctrl-u": {append(runes("恋をしたのは"), keys([]input{
-			{tcell.KeyLeft, rune(tcell.KeyLeft), tcell.ModNone},
-			{tcell.KeyCtrlU, 'U', tcell.ModCtrl},
-			{tcell.KeyRight, rune(tcell.KeyRight), tcell.ModNone},
-		}...)...)},
-		"long item": {keys([]input{
-			{tcell.KeyUp, rune(tcell.KeyUp), tcell.ModNone},
-			{tcell.KeyUp, rune(tcell.KeyUp), tcell.ModNone},
-			{tcell.KeyUp, rune(tcell.KeyUp), tcell.ModNone},
-		}...)},
-		"paging": {keys([]input{
-			{tcell.KeyUp, rune(tcell.KeyUp), tcell.ModNone},
-			{tcell.KeyUp, rune(tcell.KeyUp), tcell.ModNone},
-			{tcell.KeyUp, rune(tcell.KeyUp), tcell.ModNone},
-			{tcell.KeyUp, rune(tcell.KeyUp), tcell.ModNone},
-			{tcell.KeyUp, rune(tcell.KeyUp), tcell.ModNone},
-			{tcell.KeyUp, rune(tcell.KeyUp), tcell.ModNone},
-			{tcell.KeyUp, rune(tcell.KeyUp), tcell.ModNone},
-			{tcell.KeyUp, rune(tcell.KeyUp), tcell.ModNone},
-		}...)},
-		"tab doesn't work": {keys(input{tcell.KeyTab, rune(tcell.KeyTab), tcell.ModNone})},
-		"backspace doesnt change x if cursorX is 0": {append(runes("a"), keys([]input{
-			{tcell.KeyCtrlA, 'A', tcell.ModCtrl},
-			{tcell.KeyBackspace, rune(tcell.KeyBackspace), tcell.ModNone},
-			{tcell.KeyCtrlF, 'F', tcell.ModCtrl},
-		}...)...)},
+		"input lo":   {events: runes("lo")},
+		"input glow": {events: runes("glow")},
+		"arrow up-down": {
+			events: keys([]input{
+				{tcell.KeyUp, rune(tcell.KeyUp), tcell.ModNone},
+				{tcell.KeyUp, rune(tcell.KeyUp), tcell.ModNone},
+				{tcell.KeyDown, rune(tcell.KeyDown), tcell.ModNone},
+			}...)},
+		"arrow left-right": {
+			events: append(runes("ゆるふわ樹海"), keys([]input{
+				{tcell.KeyLeft, rune(tcell.KeyLeft), tcell.ModNone},
+				{tcell.KeyLeft, rune(tcell.KeyLeft), tcell.ModNone},
+				{tcell.KeyRight, rune(tcell.KeyRight), tcell.ModNone},
+			}...)...),
+		},
+		"backspace": {
+			events: append(runes("adr .-"), keys([]input{
+				{tcell.KeyBackspace, rune(tcell.KeyBackspace), tcell.ModNone},
+				{tcell.KeyBackspace, rune(tcell.KeyBackspace), tcell.ModNone},
+			}...)...),
+		},
+		"backspace empty": {events: keys(input{tcell.KeyBackspace2, rune(tcell.KeyBackspace2), tcell.ModNone})},
+		"backspace2": {
+			events: append(runes("オレンジ"), keys([]input{
+				{tcell.KeyBackspace2, rune(tcell.KeyBackspace2), tcell.ModNone},
+				{tcell.KeyBackspace2, rune(tcell.KeyBackspace2), tcell.ModNone},
+			}...)...),
+		},
+		"arrow left backspace": {
+			events: append(runes("オレンジ"), keys([]input{
+				{tcell.KeyLeft, rune(tcell.KeyLeft), tcell.ModNone},
+				{tcell.KeyBackspace, rune(tcell.KeyBackspace), tcell.ModNone},
+			}...)...),
+		},
+		"delete": {
+			events: append(runes("オレンジ"), keys([]input{
+				{tcell.KeyCtrlA, 'A', tcell.ModCtrl},
+				{tcell.KeyDelete, rune(tcell.KeyDelete), tcell.ModNone},
+			}...)...),
+		},
+		"delete empty": {
+			events: keys([]input{
+				{tcell.KeyCtrlA, 'A', tcell.ModCtrl},
+				{tcell.KeyDelete, rune(tcell.KeyDelete), tcell.ModNone},
+			}...),
+		},
+		"ctrl-e": {
+			events: append(runes("恋をしたのは"), keys([]input{
+				{tcell.KeyCtrlA, 'A', tcell.ModCtrl},
+				{tcell.KeyCtrlE, 'E', tcell.ModCtrl},
+			}...)...),
+		},
+		"ctrl-w":       {events: append(runes("ハロ / ハワユ"), keys(input{tcell.KeyCtrlW, 'W', tcell.ModCtrl})...)},
+		"ctrl-w empty": {events: keys(input{tcell.KeyCtrlW, 'W', tcell.ModCtrl})},
+		"ctrl-u": {
+			events: append(runes("恋をしたのは"), keys([]input{
+				{tcell.KeyLeft, rune(tcell.KeyLeft), tcell.ModNone},
+				{tcell.KeyCtrlU, 'U', tcell.ModCtrl},
+				{tcell.KeyRight, rune(tcell.KeyRight), tcell.ModNone},
+			}...)...),
+		},
+		"pg-up": {
+			events: keys([]input{
+				{tcell.KeyPgUp, rune(tcell.KeyPgUp), tcell.ModNone},
+			}...),
+		},
+		"pg-up twice": {
+			events: keys([]input{
+				{tcell.KeyPgUp, rune(tcell.KeyPgUp), tcell.ModNone},
+				{tcell.KeyPgUp, rune(tcell.KeyPgUp), tcell.ModNone},
+			}...),
+		},
+		"pg-dn": {
+			events: keys([]input{
+				{tcell.KeyPgUp, rune(tcell.KeyPgUp), tcell.ModNone},
+				{tcell.KeyPgUp, rune(tcell.KeyPgUp), tcell.ModNone},
+				{tcell.KeyPgDn, rune(tcell.KeyPgDn), tcell.ModNone},
+			}...),
+		},
+		"pg-dn twice": {
+			events: keys([]input{
+				{tcell.KeyPgUp, rune(tcell.KeyPgUp), tcell.ModNone},
+				{tcell.KeyPgUp, rune(tcell.KeyPgUp), tcell.ModNone},
+				{tcell.KeyPgDn, rune(tcell.KeyPgDn), tcell.ModNone},
+				{tcell.KeyPgDn, rune(tcell.KeyPgDn), tcell.ModNone},
+			}...),
+		},
+		"long item": {
+			events: keys([]input{
+				{tcell.KeyUp, rune(tcell.KeyUp), tcell.ModNone},
+				{tcell.KeyUp, rune(tcell.KeyUp), tcell.ModNone},
+				{tcell.KeyUp, rune(tcell.KeyUp), tcell.ModNone},
+			}...),
+		},
+		"paging": {
+			events: keys([]input{
+				{tcell.KeyUp, rune(tcell.KeyUp), tcell.ModNone},
+				{tcell.KeyUp, rune(tcell.KeyUp), tcell.ModNone},
+				{tcell.KeyUp, rune(tcell.KeyUp), tcell.ModNone},
+				{tcell.KeyUp, rune(tcell.KeyUp), tcell.ModNone},
+				{tcell.KeyUp, rune(tcell.KeyUp), tcell.ModNone},
+				{tcell.KeyUp, rune(tcell.KeyUp), tcell.ModNone},
+				{tcell.KeyUp, rune(tcell.KeyUp), tcell.ModNone},
+				{tcell.KeyUp, rune(tcell.KeyUp), tcell.ModNone},
+			}...),
+		},
+		"tab doesn't work": {events: keys(input{tcell.KeyTab, rune(tcell.KeyTab), tcell.ModNone})},
+		"backspace doesnt change x if cursorX is 0": {
+			events: append(runes("a"), keys([]input{
+				{tcell.KeyCtrlA, 'A', tcell.ModCtrl},
+				{tcell.KeyBackspace, rune(tcell.KeyBackspace), tcell.ModNone},
+				{tcell.KeyCtrlF, 'F', tcell.ModCtrl},
+			}...)...),
+		},
+		"cursor begins at top":                    {opts: []fuzzyfinder.Option{fuzzyfinder.WithCursorPosition(fuzzyfinder.CursorPositionTop)}},
+		"header line":                             {opts: []fuzzyfinder.Option{fuzzyfinder.WithHeader("Search?")}},
+		"header line which exceeds max charaters": {opts: []fuzzyfinder.Option{fuzzyfinder.WithHeader("Waht do you want to search for?")}},
 	}
 
 	for name, c := range cases {
 		c := c
 
 		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+
 			events := c.events
 
 			f, term := fuzzyfinder.NewWithMockedTerminal()
 			events = append(events, key(input{tcell.KeyEsc, rune(tcell.KeyEsc), tcell.ModNone}))
 			term.SetEventsV2(events...)
+
+			opts := append(
+				c.opts,
+				fuzzyfinder.WithPreviewWindow(func(i, width, height int) string {
+					if i == -1 {
+						return "not found"
+					}
+					return "Name: " + tracks[i].Name + "\nArtist: " + tracks[i].Artist
+				}),
+				fuzzyfinder.WithMode(fuzzyfinder.ModeCaseSensitive),
+			)
 
 			assertWithGolden(t, func(t *testing.T) string {
 				_, err := f.Find(
@@ -205,13 +273,7 @@ func TestFind(t *testing.T) {
 					func(i int) string {
 						return tracks[i].Name
 					},
-					fuzzyfinder.WithPreviewWindow(func(i, width, height int) string {
-						if i == -1 {
-							return "not found"
-						}
-						return "Name: " + tracks[i].Name + "\nArtist: " + tracks[i].Artist
-					}),
-					fuzzyfinder.WithMode(fuzzyfinder.ModeCaseSensitive),
+					opts...,
 				)
 				if !errors.Is(err, fuzzyfinder.ErrAbort) {
 					t.Fatalf("Find must return ErrAbort, but got '%s'", err)
@@ -225,6 +287,8 @@ func TestFind(t *testing.T) {
 }
 
 func TestFind_hotReload(t *testing.T) {
+	t.Parallel()
+
 	f, term := fuzzyfinder.NewWithMockedTerminal()
 	events := append(runes("adrena"), keys(input{tcell.KeyEsc, rune(tcell.KeyEsc), tcell.ModNone})...)
 	term.SetEventsV2(events...)
@@ -261,6 +325,8 @@ func TestFind_hotReload(t *testing.T) {
 }
 
 func TestFind_hotReloadLock(t *testing.T) {
+	t.Parallel()
+
 	f, term := fuzzyfinder.NewWithMockedTerminal()
 	events := append(runes("adrena"), keys(input{tcell.KeyEsc, rune(tcell.KeyEsc), tcell.ModNone})...)
 	term.SetEventsV2(events...)
@@ -295,6 +361,8 @@ func TestFind_hotReloadLock(t *testing.T) {
 }
 
 func TestFind_enter(t *testing.T) {
+	t.Parallel()
+
 	cases := map[string]struct {
 		events   []tcell.Event
 		expected int
@@ -307,6 +375,8 @@ func TestFind_enter(t *testing.T) {
 		c := c
 
 		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+
 			events := c.events
 
 			f, term := fuzzyfinder.NewWithMockedTerminal()
@@ -331,7 +401,11 @@ func TestFind_enter(t *testing.T) {
 }
 
 func TestFind_error(t *testing.T) {
+	t.Parallel()
+
 	t.Run("not a slice", func(t *testing.T) {
+		t.Parallel()
+
 		f := fuzzyfinder.New()
 		_, err := f.Find("", func(i int) string { return "" })
 		if err == nil {
@@ -340,6 +414,8 @@ func TestFind_error(t *testing.T) {
 	})
 
 	t.Run("itemFunc is nil", func(t *testing.T) {
+		t.Parallel()
+
 		f := fuzzyfinder.New()
 		_, err := f.Find([]string{}, nil)
 		if err == nil {
@@ -349,6 +425,8 @@ func TestFind_error(t *testing.T) {
 }
 
 func TestFindMulti(t *testing.T) {
+	t.Parallel()
+
 	cases := map[string]struct {
 		events   []tcell.Event
 		expected []int
@@ -378,6 +456,8 @@ func TestFindMulti(t *testing.T) {
 		c := c
 
 		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+
 			events := c.events
 
 			f, term := fuzzyfinder.NewWithMockedTerminal()

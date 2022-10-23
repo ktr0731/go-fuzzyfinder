@@ -3,6 +3,7 @@ package fuzzyfinder
 import (
 	"bytes"
 	"fmt"
+	"strings"
 	"sync"
 	"time"
 
@@ -110,25 +111,18 @@ func (m *TerminalMock) GetResult() string {
 
 	for h := 0; h < height; h++ {
 		prevFg, prevBg := tcell.ColorDefault, tcell.ColorDefault
+
 		for w := 0; w < width; w++ {
 			cell := cells[h*width+w]
 			fg, bg, attr := cell.Style.Decompose()
-			var fgReset bool
-			if fg != prevFg {
+			if fg != prevFg || bg != prevBg {
+				prevFg, prevBg = fg, bg
+
 				s += "\x1b\x5b\x6d" // Reset previous color.
-				s += parseAttrV2(&fg, nil, attr)
-				prevFg = fg
-				prevBg = tcell.ColorDefault
-				fgReset = true
+				v := parseAttrV2(fg, bg, attr)
+				s += v
 			}
-			if bg != prevBg {
-				if !fgReset {
-					s += "\x1b\x5b\x6d" // Reset previous color.
-					prevFg = tcell.ColorDefault
-				}
-				s += parseAttrV2(nil, &bg, attr)
-				prevBg = bg
-			}
+
 			s += string(cell.Runes)
 			rw := runewidth.RuneWidth(cell.Runes[0])
 			if rw != 0 {
@@ -337,49 +331,64 @@ func parseAttr(attr termbox.Attribute, isFg bool) string {
 }
 
 // parseAttrV2 parses color and attribute for testing.
-func parseAttrV2(fg, bg *tcell.Color, attr tcell.AttrMask) string {
+func parseAttrV2(fg, bg tcell.Color, attr tcell.AttrMask) string {
 	if attr == tcell.AttrInvalid {
 		panic("invalid attribute")
 	}
 
-	var buf bytes.Buffer
-
-	buf.WriteString("\x1b[")
-	parseAttrMask := func() {
-		if attr >= tcell.AttrUnderline {
-			buf.WriteString("4;")
-			attr -= tcell.AttrUnderline
-		}
-		if attr >= tcell.AttrReverse {
-			buf.WriteString("7;")
-			attr -= tcell.AttrReverse
-		}
-		if attr >= tcell.AttrBold {
-			buf.WriteString("1;")
-			attr -= tcell.AttrBold
-		}
+	var params []string
+	if attr&tcell.AttrBold == tcell.AttrBold {
+		params = append(params, "1")
+		attr ^= tcell.AttrBold
+	}
+	if attr&tcell.AttrBlink == tcell.AttrBlink {
+		params = append(params, "5")
+		attr ^= tcell.AttrBlink
+	}
+	if attr&tcell.AttrReverse == tcell.AttrReverse {
+		params = append(params, "7")
+		attr ^= tcell.AttrReverse
+	}
+	if attr&tcell.AttrUnderline == tcell.AttrUnderline {
+		params = append(params, "4")
+		attr ^= tcell.AttrUnderline
+	}
+	if attr&tcell.AttrDim == tcell.AttrDim {
+		params = append(params, "2")
+		attr ^= tcell.AttrDim
+	}
+	if attr&tcell.AttrItalic == tcell.AttrItalic {
+		params = append(params, "3")
+		attr ^= tcell.AttrItalic
+	}
+	if attr&tcell.AttrStrikeThrough == tcell.AttrStrikeThrough {
+		params = append(params, "9")
+		attr ^= tcell.AttrStrikeThrough
 	}
 
-	if fg != nil || bg != nil {
-		isFg := fg != nil && bg == nil
-
-		if isFg {
-			parseAttrMask()
-			if *fg == tcell.ColorDefault {
-				buf.WriteString("39")
-			} else {
-				fmt.Fprintf(&buf, "38;5;%d", toAnsi3bit(*fg))
-			}
-		} else {
-			if *bg == tcell.ColorDefault {
-				buf.WriteString("49")
-			} else {
-				fmt.Fprintf(&buf, "48;5;%d", toAnsi3bit(*bg))
-			}
-		}
-		buf.WriteString("m")
+	switch {
+	case fg == 0: // Ignore.
+	case fg == tcell.ColorDefault:
+		params = append(params, "39")
+	case fg > tcell.Color255:
+		r, g, b := fg.RGB()
+		params = append(params, "38", "2", fmt.Sprint(r), fmt.Sprint(g), fmt.Sprint(b))
+	default:
+		params = append(params, "38", "5", fmt.Sprint(fg-tcell.ColorValid))
 	}
-	return buf.String()
+
+	switch {
+	case bg == 0: // Ignore.
+	case bg == tcell.ColorDefault:
+		params = append(params, "49")
+	case bg > tcell.Color255:
+		r, g, b := bg.RGB()
+		params = append(params, "48", "2", fmt.Sprint(r), fmt.Sprint(g), fmt.Sprint(b))
+	default:
+		params = append(params, "48", "5", fmt.Sprint(bg-tcell.ColorValid))
+	}
+
+	return fmt.Sprintf("\x1b[%sm", strings.Join(params, ";"))
 }
 
 func toAnsi3bit(color tcell.Color) int {
