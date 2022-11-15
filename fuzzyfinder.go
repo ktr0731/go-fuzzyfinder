@@ -25,6 +25,7 @@ import (
 var (
 	// ErrAbort is returned from Find* functions if there are no selections.
 	ErrAbort   = errors.New("abort")
+	ErrCancel  = errors.New("cancel")
 	errEntered = errors.New("entered")
 )
 
@@ -76,6 +77,9 @@ type finder struct {
 	drawTimer *time.Timer
 	eventCh   chan struct{}
 	opt       *opt
+
+	termEventsChan <-chan tcell.Event
+	termQuitChan   chan<- struct{}
 }
 
 func newFinder() *finder {
@@ -94,6 +98,12 @@ func (f *finder) initFinder(items []string, matched []matching.Matched, opt opt)
 		if err := f.term.Init(); err != nil {
 			return errors.Wrap(err, "failed to initialize screen")
 		}
+
+		eventsChan := make(chan tcell.Event)
+		quitChan := make(chan struct{})
+		go f.term.ChannelEvents(eventsChan, quitChan)
+		f.termEventsChan = eventsChan
+		f.termQuitChan = quitChan
 	}
 
 	f.opt = &opt
@@ -442,9 +452,10 @@ func (f *finder) draw(d time.Duration) {
 }
 
 // readKey reads a key input.
-// It returns ErrAbort if esc, CTRL-C or CTRL-D keys are inputted.
-// Also, it returns errEntered if enter key is inputted.
-func (f *finder) readKey() error {
+// It returns ErrAbort if esc, CTRL-C or CTRL-D keys are inputted,
+// errEntered in case of enter key, and ErrCancel when the passed
+// context is cancelled.
+func (f *finder) readKey(ctx context.Context) error {
 	f.stateMu.RLock()
 	prevInputLen := len(f.state.input)
 	f.stateMu.RUnlock()
@@ -457,7 +468,15 @@ func (f *finder) readKey() error {
 		}
 	}()
 
-	e := f.term.PollEvent()
+	var e tcell.Event
+
+	select {
+	case ee := <-f.termEventsChan:
+		e = ee
+	case <-ctx.Done():
+		return ErrCancel
+	}
+
 	f.stateMu.Lock()
 	defer f.stateMu.Unlock()
 
@@ -670,7 +689,14 @@ func (f *finder) find(slice interface{}, itemFunc func(i int) string, opts []Opt
 		matched []matching.Matched
 	)
 
-	ctx, cancel := context.WithCancel(context.Background())
+	var parentContext context.Context
+	if opt.context != nil {
+		parentContext = opt.context
+	} else {
+		parentContext = context.Background()
+	}
+
+	ctx, cancel := context.WithCancel(parentContext)
 	defer cancel()
 
 	inited := make(chan struct{})
@@ -727,40 +753,45 @@ func (f *finder) find(slice interface{}, itemFunc func(i int) string, opts []Opt
 	}()
 
 	for {
-		f.draw(10 * time.Millisecond)
+		select {
+		case <-ctx.Done():
+			return nil, ErrCancel
+		default:
+			f.draw(10 * time.Millisecond)
 
-		err := f.readKey()
-		// hack for earning time to filter exec
-		if isInTesting() {
-			time.Sleep(50 * time.Millisecond)
-		}
-		switch {
-		case errors.Is(err, ErrAbort):
-			return nil, ErrAbort
-		case errors.Is(err, errEntered):
-			f.stateMu.RLock()
-			defer f.stateMu.RUnlock()
-
-			if len(f.state.matched) == 0 {
+			err := f.readKey(ctx)
+			// hack for earning time to filter exec
+			if isInTesting() {
+				time.Sleep(50 * time.Millisecond)
+			}
+			switch {
+			case errors.Is(err, ErrAbort):
 				return nil, ErrAbort
-			}
-			if f.opt.multi {
-				if len(f.state.selection) == 0 {
-					return []int{f.state.matched[f.state.y].Idx}, nil
+			case errors.Is(err, errEntered):
+				f.stateMu.RLock()
+				defer f.stateMu.RUnlock()
+
+				if len(f.state.matched) == 0 {
+					return nil, ErrAbort
 				}
-				poss, idxs := make([]int, 0, len(f.state.selection)), make([]int, 0, len(f.state.selection))
-				for idx, pos := range f.state.selection {
-					idxs = append(idxs, idx)
-					poss = append(poss, pos)
+				if f.opt.multi {
+					if len(f.state.selection) == 0 {
+						return []int{f.state.matched[f.state.y].Idx}, nil
+					}
+					poss, idxs := make([]int, 0, len(f.state.selection)), make([]int, 0, len(f.state.selection))
+					for idx, pos := range f.state.selection {
+						idxs = append(idxs, idx)
+						poss = append(poss, pos)
+					}
+					sort.Slice(idxs, func(i, j int) bool {
+						return poss[i] < poss[j]
+					})
+					return idxs, nil
 				}
-				sort.Slice(idxs, func(i, j int) bool {
-					return poss[i] < poss[j]
-				})
-				return idxs, nil
+				return []int{f.state.matched[f.state.y].Idx}, nil
+			case err != nil:
+				return nil, errors.Wrap(err, "failed to read a key")
 			}
-			return []int{f.state.matched[f.state.y].Idx}, nil
-		case err != nil:
-			return nil, errors.Wrap(err, "failed to read a key")
 		}
 	}
 }
