@@ -464,7 +464,7 @@ func TestFind_withContext(t *testing.T) {
 			},
 			fuzzyfinder.WithContext(cancelledCtx),
 		)
-		if !errors.Is(err, fuzzyfinder.ErrCancel) {
+		if !errors.Is(err, context.Canceled) {
 			t.Fatalf("Find must return ErrAbort, but got '%s'", err)
 		}
 

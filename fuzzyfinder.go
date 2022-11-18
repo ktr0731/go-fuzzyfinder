@@ -25,7 +25,6 @@ import (
 var (
 	// ErrAbort is returned from Find* functions if there are no selections.
 	ErrAbort   = errors.New("abort")
-	ErrCancel  = errors.New("cancel")
 	errEntered = errors.New("entered")
 )
 
@@ -471,7 +470,7 @@ func (f *finder) readKey(ctx context.Context) error {
 	case ee := <-f.termEventsChan:
 		e = ee
 	case <-ctx.Done():
-		return ErrCancel
+		return ctx.Err()
 	}
 
 	f.stateMu.Lock()
@@ -752,7 +751,7 @@ func (f *finder) find(slice interface{}, itemFunc func(i int) string, opts []Opt
 	for {
 		select {
 		case <-ctx.Done():
-			return nil, ErrCancel
+			return nil, ctx.Err()
 		default:
 			f.draw(10 * time.Millisecond)
 
