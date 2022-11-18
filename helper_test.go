@@ -8,14 +8,12 @@ func New() *finder {
 
 func NewWithMockedTerminal() (*finder, *TerminalMock) {
 	eventsChan := make(chan tcell.Event, 10)
-	quitChan := make(chan struct{})
 
 	f := New()
 	f.termEventsChan = eventsChan
-	f.termQuitChan = quitChan
 
 	m := f.UseMockedTerminalV2()
-	go m.ChannelEvents(eventsChan, quitChan)
+	go m.ChannelEvents(eventsChan, nil)
 
 	w, h := 60, 10 // A normally value.
 	m.SetSize(w, h)

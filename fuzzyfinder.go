@@ -79,7 +79,6 @@ type finder struct {
 	opt       *opt
 
 	termEventsChan <-chan tcell.Event
-	termQuitChan   chan<- struct{}
 }
 
 func newFinder() *finder {
@@ -100,10 +99,8 @@ func (f *finder) initFinder(items []string, matched []matching.Matched, opt opt)
 		}
 
 		eventsChan := make(chan tcell.Event)
-		quitChan := make(chan struct{})
-		go f.term.ChannelEvents(eventsChan, quitChan)
+		go f.term.ChannelEvents(eventsChan, nil)
 		f.termEventsChan = eventsChan
-		f.termQuitChan = quitChan
 	}
 
 	f.opt = &opt
