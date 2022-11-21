@@ -449,7 +449,7 @@ func (f *finder) draw(d time.Duration) {
 
 // readKey reads a key input.
 // It returns ErrAbort if esc, CTRL-C or CTRL-D keys are inputted,
-// errEntered in case of enter key, and ErrCancel when the passed
+// errEntered in case of enter key, and a context error when the passed
 // context is cancelled.
 func (f *finder) readKey(ctx context.Context) error {
 	f.stateMu.RLock()
