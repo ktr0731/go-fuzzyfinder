@@ -1,6 +1,7 @@
 package fuzzyfinder_test
 
 import (
+	"context"
 	"flag"
 	"io/ioutil"
 	"log"
@@ -443,6 +444,33 @@ func TestFind_WithPreviewWindow(t *testing.T) {
 			})
 		})
 	}
+}
+
+func TestFind_withContext(t *testing.T) {
+	t.Parallel()
+
+	f, term := fuzzyfinder.NewWithMockedTerminal()
+	events := append(runes("adrena"), keys(input{tcell.KeyEsc, rune(tcell.KeyEsc), tcell.ModNone})...)
+	term.SetEventsV2(events...)
+
+	cancelledCtx, cancelFunc := context.WithCancel(context.Background())
+	cancelFunc()
+
+	assertWithGolden(t, func(t *testing.T) string {
+		_, err := f.Find(
+			tracks,
+			func(i int) string {
+				return tracks[i].Name
+			},
+			fuzzyfinder.WithContext(cancelledCtx),
+		)
+		if !errors.Is(err, context.Canceled) {
+			t.Fatalf("Find must return ErrAbort, but got '%s'", err)
+		}
+
+		res := term.GetResult()
+		return res
+	})
 }
 
 func TestFind_error(t *testing.T) {
