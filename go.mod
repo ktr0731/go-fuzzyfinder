@@ -1,7 +1,7 @@
 module github.com/ktr0731/go-fuzzyfinder
 
 require (
-	github.com/gdamore/tcell/v2 v2.5.3
+	github.com/gdamore/tcell/v2 v2.5.4
 	github.com/google/go-cmp v0.5.9
 	github.com/google/gofuzz v1.2.0
 	github.com/ktr0731/go-ansisgr v0.1.0
@@ -11,7 +11,6 @@ require (
 	github.com/rivo/uniseg v0.4.2 // indirect
 	golang.org/x/sys v0.1.0 // indirect
 	golang.org/x/term v0.1.0 // indirect
-	golang.org/x/text v0.4.0 // indirect
 )
 
 go 1.13
