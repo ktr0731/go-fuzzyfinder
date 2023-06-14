@@ -14,6 +14,7 @@ type opt struct {
 	promptString  string
 	header        string
 	beginAtTop    bool
+	query         string
 	context       context.Context
 }
 
@@ -118,6 +119,13 @@ func withMulti() Option {
 func WithHeader(s string) Option {
 	return func(o *opt) {
 		o.header = s
+	}
+}
+
+// WithQuery specifies the initial search query.
+func WithQuery(s string) Option {
+	return func(o *opt) {
+		o.query = s
 	}
 }
 

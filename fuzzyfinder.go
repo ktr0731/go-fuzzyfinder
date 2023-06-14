@@ -113,6 +113,13 @@ func (f *finder) initFinder(items []string, matched []matching.Matched, opt opt)
 	f.state.matched = matched
 	f.state.allMatched = matched
 
+	if opt.query != "" {
+		f.state.input = []rune(opt.query)
+		f.state.cursorX = runewidth.StringWidth(opt.query)
+		f.state.x = len(opt.query)
+		f.filter()
+	}
+
 	if opt.beginAtTop {
 		f.state.cursorY = len(f.state.matched) - 1
 		f.state.y = len(f.state.matched) - 1
