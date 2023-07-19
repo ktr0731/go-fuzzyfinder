@@ -473,6 +473,113 @@ func TestFind_withContext(t *testing.T) {
 	})
 }
 
+func TestFind_WithQuery(t *testing.T) {
+	t.Parallel()
+	var (
+		things    = []string{"one", "three2one"}
+		thingFunc = func(i int) string {
+			return things[i]
+		}
+		events = append(runes("one"), key(input{tcell.KeyEnter, rune(tcell.KeyEnter), tcell.ModNone}))
+	)
+
+	t.Run("no initial query", func(t *testing.T) {
+		f, term := fuzzyfinder.NewWithMockedTerminal()
+		term.SetEventsV2(events...)
+
+		assertWithGolden(t, func(t *testing.T) string {
+			idx, err := f.Find(things, thingFunc)
+			if err != nil {
+				t.Fatalf("Find must not return an error, but got '%s'", err)
+			}
+			if idx != 0 {
+				t.Errorf("expected index: 0, but got %d", idx)
+			}
+			res := term.GetResult()
+			return res
+		})
+	})
+
+	t.Run("has initial query", func(t *testing.T) {
+		f, term := fuzzyfinder.NewWithMockedTerminal()
+		term.SetEventsV2(events...)
+
+		assertWithGolden(t, func(t *testing.T) string {
+			idx, err := f.Find(things, thingFunc, fuzzyfinder.WithQuery("three2"))
+
+			if err != nil {
+				t.Fatalf("Find must not return an error, but got '%s'", err)
+			}
+			if idx != 1 {
+				t.Errorf("expected index: 1, but got %d", idx)
+			}
+			res := term.GetResult()
+			return res
+		})
+	})
+}
+
+func TestFind_WithSelectOne(t *testing.T) {
+	t.Parallel()
+
+	cases := map[string]struct {
+		things   []string
+		moreOpts []fuzzyfinder.Option
+		expected int
+		abort    bool
+	}{
+		"only one option": {
+			things:   []string{"one"},
+			expected: 0,
+		},
+		"more than one": {
+			things: []string{"one", "two"},
+			abort:  true,
+		},
+		"has initial query": {
+			things: []string{"one", "two"},
+			moreOpts: []fuzzyfinder.Option{
+				fuzzyfinder.WithQuery("two"),
+			},
+			expected: 1,
+		},
+	}
+
+	for name, c := range cases {
+		c := c
+
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			f, term := fuzzyfinder.NewWithMockedTerminal()
+			term.SetEventsV2(key(input{tcell.KeyEsc, rune(tcell.KeyEsc), tcell.ModNone}))
+
+			assertWithGolden(t, func(t *testing.T) string {
+				idx, err := f.Find(
+					c.things,
+					func(i int) string {
+						return c.things[i]
+					},
+					append(c.moreOpts, fuzzyfinder.WithSelectOne())...,
+				)
+				if c.abort {
+					if !errors.Is(err, fuzzyfinder.ErrAbort) {
+						t.Fatalf("Find must return ErrAbort, but got '%s'", err)
+					}
+				} else {
+					if err != nil {
+						t.Fatalf("Find must not return an error, but got '%s'", err)
+					}
+					if idx != c.expected {
+						t.Errorf("expected index: %d, but got %d", c.expected, idx)
+					}
+				}
+				res := term.GetResult()
+				return res
+			})
+		})
+	}
+}
+
 func TestFind_error(t *testing.T) {
 	t.Parallel()
 

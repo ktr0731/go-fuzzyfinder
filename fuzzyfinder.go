@@ -129,6 +129,14 @@ func (f *finder) initFinder(items []string, matched []matching.Matched, opt opt)
 		f.drawTimer.Stop()
 	}
 	f.eventCh = make(chan struct{}, 30) // A large value
+
+	if opt.query != "" {
+		f.state.input = []rune(opt.query)
+		f.state.cursorX = runewidth.StringWidth(opt.query)
+		f.state.x = len(opt.query)
+		f.filter()
+	}
+
 	return nil
 }
 
@@ -735,6 +743,10 @@ func (f *finder) find(slice interface{}, itemFunc func(i int) string, opts []Opt
 	}
 
 	close(inited)
+
+	if opt.selectOne && len(f.state.matched) == 1 {
+		return []int{f.state.matched[0].Idx}, nil
+	}
 
 	go func() {
 		for {

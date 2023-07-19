@@ -15,6 +15,8 @@ type opt struct {
 	header        string
 	beginAtTop    bool
 	context       context.Context
+	query         string
+	selectOne     bool
 }
 
 type mode int
@@ -125,5 +127,19 @@ func WithHeader(s string) Option {
 func WithContext(ctx context.Context) Option {
 	return func(o *opt) {
 		o.context = ctx
+	}
+}
+
+// WithQuery enables to set the initial query.
+func WithQuery(s string) Option {
+	return func(o *opt) {
+		o.query = s
+	}
+}
+
+// WithQuery enables to set the initial query.
+func WithSelectOne() Option {
+	return func(o *opt) {
+		o.selectOne = true
 	}
 }
