@@ -1,7 +1,7 @@
 module github.com/ktr0731/go-fuzzyfinder
 
 require (
-	github.com/gdamore/tcell/v2 v2.6.0
+	github.com/gdamore/tcell/v2 v2.7.1
 	github.com/google/go-cmp v0.6.0
 	github.com/google/gofuzz v1.2.0
 	github.com/ktr0731/go-ansisgr v0.1.0
