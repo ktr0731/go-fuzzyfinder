@@ -67,7 +67,7 @@ require (
 	github.com/dghubble/sling v1.3.0 // indirect
 	github.com/dimchansky/utfbom v1.1.1 // indirect
 	github.com/emirpasic/gods v1.18.1 // indirect
-	github.com/fatih/color v1.12.0 // indirect
+	github.com/fatih/color v1.16.0 // indirect
 	github.com/go-git/gcfg v1.5.1-0.20230307220236-3a3c6141e376 // indirect
 	github.com/go-git/go-billy/v5 v5.5.0 // indirect
 	github.com/go-git/go-git/v5 v5.11.0 // indirect
@@ -87,8 +87,8 @@ require (
 	github.com/goreleaser/fileglob v1.3.0 // indirect
 	github.com/goreleaser/nfpm/v2 v2.29.0 // indirect
 	github.com/gorilla/websocket v1.4.2 // indirect
-	github.com/hashicorp/go-cleanhttp v0.5.1 // indirect
-	github.com/hashicorp/go-retryablehttp v0.6.8 // indirect
+	github.com/hashicorp/go-cleanhttp v0.5.2 // indirect
+	github.com/hashicorp/go-retryablehttp v0.7.7 // indirect
 	github.com/hashicorp/go-version v1.2.1 // indirect
 	github.com/huandu/xstrings v1.3.2 // indirect
 	github.com/iancoleman/orderedmap v0.0.0-20190318233801-ac98e3ecb4b0 // indirect
@@ -99,9 +99,9 @@ require (
 	github.com/kevinburke/ssh_config v1.2.0 // indirect
 	github.com/klauspost/compress v1.16.5 // indirect
 	github.com/klauspost/pgzip v1.2.6 // indirect
-	github.com/mattn/go-colorable v0.1.8 // indirect
+	github.com/mattn/go-colorable v0.1.13 // indirect
 	github.com/mattn/go-ieproxy v0.0.1 // indirect
-	github.com/mattn/go-isatty v0.0.12 // indirect
+	github.com/mattn/go-isatty v0.0.20 // indirect
 	github.com/mitchellh/copystructure v1.2.0 // indirect
 	github.com/mitchellh/go-homedir v1.1.0 // indirect
 	github.com/mitchellh/reflectwalk v1.0.2 // indirect
@@ -126,7 +126,7 @@ require (
 	golang.org/x/net v0.23.0 // indirect
 	golang.org/x/oauth2 v0.7.0 // indirect
 	golang.org/x/sync v0.3.0 // indirect
-	golang.org/x/sys v0.18.0 // indirect
+	golang.org/x/sys v0.20.0 // indirect
 	golang.org/x/text v0.14.0 // indirect
 	golang.org/x/time v0.0.0-20210723032227-1f47c861a9ac // indirect
 	golang.org/x/tools v0.13.0 // indirect
