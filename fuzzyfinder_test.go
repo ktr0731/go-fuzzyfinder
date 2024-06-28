@@ -627,6 +627,26 @@ func TestFindMulti(t *testing.T) {
 			{tcell.KeyTab, rune(tcell.KeyTab), tcell.ModNone},
 			{tcell.KeyTab, rune(tcell.KeyTab), tcell.ModNone},
 		}...), expected: []int{0}},
+		"select all": {events: keys([]input{
+			{tcell.KeyCtrlT, 'T', tcell.ModCtrl},
+		}...), expected: []int{0, 1, 2, 3, 4, 5, 6, 7, 8}},
+		"select all toggle": {events: keys([]input{
+			{tcell.KeyCtrlT, 'T', tcell.ModCtrl},
+			{tcell.KeyCtrlT, 'T', tcell.ModCtrl},
+		}...), expected: []int{0}},
+		"ignore previous 'select all' state": {events: keys(
+			concat(
+				repeat(input{tcell.KeyUp, rune(tcell.KeyUp), tcell.ModNone}, 9),
+				repeat(input{tcell.KeyTab, rune(tcell.KeyTab), tcell.ModNone}, 9),
+				[]input{{tcell.KeyCtrlT, 'T', tcell.ModCtrl}},
+			)...), expected: []int{0}},
+		"ignore previous 'unselect all' state": {events: keys(
+			concat(
+				[]input{{tcell.KeyCtrlT, 'T', tcell.ModCtrl}},
+				repeat(input{tcell.KeyUp, rune(tcell.KeyUp), tcell.ModNone}, 9),
+				repeat(input{tcell.KeyTab, rune(tcell.KeyTab), tcell.ModNone}, 9),
+				[]input{{tcell.KeyCtrlT, 'T', tcell.ModCtrl}},
+			)...), expected: []int{0, 1, 2, 3, 4, 5, 6, 7, 8}},
 		"empty result": {events: runes("fffffff"), abort: true},
 		"resize window": {events: []tcell.Event{
 			tcell.NewEventResize(10, 10),
@@ -751,6 +771,22 @@ func keys(inputs ...input) []tcell.Event {
 		k = append(k, key(in))
 	}
 	return k
+}
+
+func concat(inputs ...[]input) []input {
+	var res []input
+	for _, in := range inputs {
+		res = append(res, in...)
+	}
+	return res
+}
+
+func repeat(in input, count int) []input {
+	res := make([]input, count)
+	for i := 0; i < count; i++ {
+		res[i] = in
+	}
+	return res
 }
 
 type input struct {
