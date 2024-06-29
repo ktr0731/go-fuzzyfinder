@@ -8,6 +8,7 @@ import (
 	"flag"
 	"fmt"
 	"reflect"
+	"regexp"
 	"sort"
 	"strings"
 	"sync"
@@ -243,23 +244,24 @@ func (f *finder) _draw() {
 		}
 
 		var posIdx int
-		w := 2
-		for j, r := range []rune(f.state.items[m.Idx]) {
-			style := tcell.StyleDefault.
-				Foreground(tcell.ColorDefault).
-				Background(tcell.ColorDefault)
+		w, j := 2, 0
+		iter := ansisgr.NewIterator(f.state.items[m.Idx])
+		for {
+			r, rstyle, ok := iter.Next()
+			if !ok {
+				break
+			}
+			style := ansisgr2tcell(rstyle)
+
 			// Highlight selected strings.
 			hasHighlighted := false
 			if posIdx < len(f.state.input) {
-				from, to := m.Pos[0], m.Pos[1]
-				if !(from == -1 && to == -1) && (from <= j && j <= to) {
-					if unicode.ToLower(f.state.input[posIdx]) == unicode.ToLower(r) {
-						style = tcell.StyleDefault.
-							Foreground(tcell.ColorGreen).
-							Background(tcell.ColorDefault)
-						hasHighlighted = true
-						posIdx++
-					}
+				if unicode.ToLower(f.state.input[posIdx]) == unicode.ToLower(r) {
+					style = tcell.StyleDefault.
+						Foreground(tcell.ColorDarkCyan).
+						Background(tcell.ColorDefault)
+					hasHighlighted = true
+					posIdx++
 				}
 			}
 			if i == f.state.cursorY {
@@ -269,8 +271,9 @@ func (f *finder) _draw() {
 						Bold(true).
 						Background(tcell.ColorBlack)
 				} else {
+					fg, _, _ := style.Decompose()
 					style = tcell.StyleDefault.
-						Foreground(tcell.ColorYellow).
+						Foreground(fg).
 						Bold(true).
 						Background(tcell.ColorBlack)
 				}
@@ -286,6 +289,8 @@ func (f *finder) _draw() {
 				f.term.SetContent(w, maxHeight-1-i, r, nil, style)
 				w += rw
 			}
+
+			j++
 		}
 	}
 }
@@ -678,11 +683,15 @@ func (f *finder) find(slice interface{}, itemFunc func(i int) string, opts []Opt
 		return nil, errors.Errorf("the first argument must be a slice, but got %T", slice)
 	}
 
+	reANSI := regexp.MustCompile(`\x1b\[[0-9;]*[a-zA-Z]`)
 	makeItems := func(sliceLen int) ([]string, []matching.Matched) {
 		items := make([]string, sliceLen)
 		matched := make([]matching.Matched, sliceLen)
 		for i := 0; i < sliceLen; i++ {
 			items[i] = itemFunc(i)
+			if !opt.itemANSISupport {
+				items[i] = reANSI.ReplaceAllString(items[i], "")
+			}
 			matched[i] = matching.Matched{Idx: i} //nolint:exhaustivestruct
 		}
 		return items, matched
@@ -852,4 +861,40 @@ func consumeIterator(iter *ansisgr.Iterator, r rune) {
 			return
 		}
 	}
+}
+
+func ansisgr2tcell(rstyle ansisgr.Style) tcell.Style {
+	style := tcell.StyleDefault
+	if color, ok := rstyle.Foreground(); ok {
+		switch color.Mode() {
+		case ansisgr.Mode16:
+			style = style.Foreground(tcell.PaletteColor(color.Value() - 90))
+		case ansisgr.Mode256:
+			style = style.Foreground(tcell.PaletteColor(color.Value()))
+		case ansisgr.ModeRGB:
+			r, g, b := color.RGB()
+			style = style.Foreground(tcell.NewRGBColor(int32(r), int32(g), int32(b)))
+		}
+	}
+	if color, valid := rstyle.Background(); valid {
+		switch color.Mode() {
+		case ansisgr.Mode16:
+			style = style.Background(tcell.PaletteColor(color.Value() - 90))
+		case ansisgr.Mode256:
+			style = style.Background(tcell.PaletteColor(color.Value()))
+		case ansisgr.ModeRGB:
+			r, g, b := color.RGB()
+			style = style.Background(tcell.NewRGBColor(int32(r), int32(g), int32(b)))
+		}
+	}
+
+	style = style.
+		Bold(rstyle.Bold()).
+		Dim(rstyle.Dim()).
+		Italic(rstyle.Italic()).
+		Underline(rstyle.Underline()).
+		Blink(rstyle.Blink()).
+		Reverse(rstyle.Reverse()).
+		StrikeThrough(rstyle.Strikethrough())
+	return style
 }
