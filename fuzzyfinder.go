@@ -45,6 +45,7 @@ type state struct {
 	items      []string           // All item names.
 	allMatched []matching.Matched // All items.
 	matched    []matching.Matched // Matched items against the input.
+	toggleAll  bool               // true -> select all, false -> unselect all
 
 	// x is the current index of the prompt line.
 	x int
@@ -112,6 +113,7 @@ func (f *finder) initFinder(items []string, matched []matching.Matched, opt opt)
 	f.state.items = items
 	f.state.matched = matched
 	f.state.allMatched = matched
+	f.state.toggleAll = true
 
 	if opt.beginAtTop {
 		f.state.cursorY = len(f.state.matched) - 1
@@ -202,7 +204,14 @@ func (f *finder) _draw() {
 	}
 
 	// Number line
-	for i, r := range fmt.Sprintf("%d/%d", len(f.state.matched), len(f.state.items)) {
+	var numLine string
+	if f.opt.multi {
+		numLine = fmt.Sprintf("%d/%d (%d)", len(f.state.matched), len(f.state.items), len(f.state.selection))
+	} else {
+		numLine = fmt.Sprintf("%d/%d", len(f.state.matched), len(f.state.items))
+	}
+
+	for i, r := range numLine {
 		style := tcell.StyleDefault.
 			Foreground(tcell.ColorYellow).
 			Background(tcell.ColorDefault)
@@ -588,6 +597,29 @@ func (f *finder) readKey(ctx context.Context) error {
 			if f.state.cursorY > 0 {
 				f.state.cursorY--
 			}
+		case tcell.KeyCtrlT:
+			if !f.opt.multi {
+				return nil
+			}
+
+			selected_count := len(f.state.selection)
+			if selected_count == 0 {
+				f.state.toggleAll = true // If nothing is selected, select all regardless of the previous state
+			} else if selected_count == len(f.state.matched) {
+				f.state.toggleAll = false // If everything is selected, unselect all regardless of the previous state
+			}
+
+			for currentY := 0; currentY < len(f.state.matched); currentY++ {
+				idx := f.state.matched[currentY].Idx
+				if _, ok := f.state.selection[idx]; ok && !f.state.toggleAll {
+					delete(f.state.selection, idx)
+				} else if !ok && f.state.toggleAll {
+					f.state.selection[idx] = f.state.selectionIdx
+					f.state.selectionIdx++
+				}
+			}
+
+			f.state.toggleAll = !f.state.toggleAll
 		default:
 			if e.Rune() != 0 {
 				width, _ := f.term.Size()
