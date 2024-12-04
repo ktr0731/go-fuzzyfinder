@@ -6,17 +6,18 @@ import (
 )
 
 type opt struct {
-	mode          mode
-	previewFunc   func(i, width, height int) string
-	multi         bool
-	hotReload     bool
-	hotReloadLock sync.Locker
-	promptString  string
-	header        string
-	beginAtTop    bool
-	context       context.Context
-	query         string
-	selectOne     bool
+	mode            mode
+	previewFunc     func(i, width, height int) string
+	multi           bool
+	hotReload       bool
+	hotReloadLock   sync.Locker
+	promptString    string
+	header          string
+	beginAtTop      bool
+	context         context.Context
+	query           string
+	selectOne       bool
+	itemANSISupport bool
 }
 
 type mode int
@@ -137,9 +138,16 @@ func WithQuery(s string) Option {
 	}
 }
 
-// WithQuery enables to set the initial query.
+// WithSelectOne enables to set the initial query.
 func WithSelectOne() Option {
 	return func(o *opt) {
 		o.selectOne = true
+	}
+}
+
+// WithItemANSISupport enables to parse ANSI color in candidate items.
+func WithItemANSISupport() Option {
+	return func(o *opt) {
+		o.itemANSISupport = true
 	}
 }
