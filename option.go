@@ -3,6 +3,8 @@ package fuzzyfinder
 import (
 	"context"
 	"sync"
+
+	"github.com/gdamore/tcell/v2"
 )
 
 type opt struct {
@@ -12,6 +14,7 @@ type opt struct {
 	hotReload     bool
 	hotReloadLock sync.Locker
 	promptString  string
+	promptColor   tcell.Color
 	header        string
 	beginAtTop    bool
 	context       context.Context
@@ -34,6 +37,7 @@ const (
 
 var defaultOption = opt{
 	promptString:  "> ",
+	promptColor:   tcell.ColorBlue,
 	hotReloadLock: &sync.Mutex{}, // this won't resolve the race condition but avoid nil panic
 }
 
@@ -106,6 +110,13 @@ func WithCursorPosition(position cursorPosition) Option {
 func WithPromptString(s string) Option {
 	return func(o *opt) {
 		o.promptString = s
+	}
+}
+
+// WithPromptColor changes the prompt color. The default color is blue.
+func WithPromptColor(c tcell.Color) Option {
+	return func(o *opt) {
+		o.promptColor = c
 	}
 }
 
