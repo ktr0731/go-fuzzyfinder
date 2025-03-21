@@ -1,6 +1,7 @@
 module github.com/Code-Hex/go-fuzzyfinder/tools
 
 go 1.17
+toolchain go1.24.1
 
 require (
 	github.com/Songmu/gocredits v0.2.0
@@ -73,7 +74,7 @@ require (
 	github.com/go-git/go-git/v5 v5.13.0 // indirect
 	github.com/go-telegram-bot-api/telegram-bot-api v4.6.4+incompatible // indirect
 	github.com/gobwas/glob v0.2.3 // indirect
-	github.com/golang-jwt/jwt/v4 v4.5.1 // indirect
+	github.com/golang-jwt/jwt/v4 v4.5.2 // indirect
 	github.com/golang/groupcache v0.0.0-20210331224755-41bb18bfe9da // indirect
 	github.com/golang/protobuf v1.5.3 // indirect
 	github.com/google/go-cmp v0.6.0 // indirect
