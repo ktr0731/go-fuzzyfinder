@@ -10,4 +10,15 @@ require (
 	github.com/pkg/errors v0.9.1
 )
 
-go 1.13
+require (
+	github.com/gdamore/encoding v1.0.1 // indirect
+	github.com/lucasb-eyer/go-colorful v1.2.0 // indirect
+	github.com/rivo/uniseg v0.4.7 // indirect
+	golang.org/x/sys v0.32.0 // indirect
+	golang.org/x/term v0.31.0 // indirect
+	golang.org/x/text v0.24.0 // indirect
+)
+
+go 1.24
+
+toolchain go1.24.1

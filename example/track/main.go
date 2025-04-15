@@ -22,7 +22,12 @@ var tracks = []Track{
 }
 
 func main() {
-	idx, err := fuzzyfinder.FindMulti(
+	singleExample()
+	multiExample()
+}
+
+func singleExample() {
+	idx, err := fuzzyfinder.Find(
 		tracks,
 		func(i int) string {
 			return tracks[i].Name
@@ -35,9 +40,42 @@ func main() {
 				tracks[i].Name,
 				tracks[i].Artist,
 				tracks[i].AlbumName)
-		}))
+		}),
+		fuzzyfinder.WithPreselected(func(i int) bool {
+			return i == 1
+		}),
+	)
 	if err != nil {
 		log.Fatal(err)
 	}
-	fmt.Printf("selected: %v\n", idx)
+	fmt.Printf("Selected: %s\n", tracks[idx].Name)
+}
+
+func multiExample() {
+	idxs, err := fuzzyfinder.FindMulti(
+		tracks,
+		func(i int) string {
+			return tracks[i].Name
+		},
+		fuzzyfinder.WithPreviewWindow(func(i, w, h int) string {
+			if i == -1 {
+				return ""
+			}
+			return fmt.Sprintf("Track: %s (%s)\nAlbum: %s",
+				tracks[i].Name,
+				tracks[i].Artist,
+				tracks[i].AlbumName)
+		}),
+		fuzzyfinder.WithPreselected(func(i int) bool {
+			return tracks[i].Artist == "artist2"
+		}),
+	)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	fmt.Println("Selected:")
+	for _, idx := range idxs {
+		fmt.Printf("- %v (%s)\n", idx, tracks[idx].Name)
+	}
 }
