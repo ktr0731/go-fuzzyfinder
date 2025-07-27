@@ -205,7 +205,7 @@ func (f *finder) _draw() {
 
 	for _, r := range f.opt.promptString {
 		style := tcell.StyleDefault.
-			Foreground(tcell.ColorBlue).
+			Foreground(f.opt.promptColor).
 			Background(tcell.ColorDefault)
 
 		f.term.SetContent(promptLinePad, maxHeight-1, r, nil, style)
