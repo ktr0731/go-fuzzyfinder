@@ -374,7 +374,7 @@ func parseAttrV2(fg, bg tcell.Color, attr tcell.AttrMask) string {
 		r, g, b := fg.RGB()
 		params = append(params, "38", "2", fmt.Sprint(r), fmt.Sprint(g), fmt.Sprint(b))
 	default:
-		params = append(params, "38", "5", fmt.Sprint(fg-tcell.ColorValid))
+		params = append(params, "38", "5", fmt.Sprint(int(fg-tcell.ColorValid)))
 	}
 
 	switch {
@@ -385,7 +385,7 @@ func parseAttrV2(fg, bg tcell.Color, attr tcell.AttrMask) string {
 		r, g, b := bg.RGB()
 		params = append(params, "48", "2", fmt.Sprint(r), fmt.Sprint(g), fmt.Sprint(b))
 	default:
-		params = append(params, "48", "5", fmt.Sprint(bg-tcell.ColorValid))
+		params = append(params, "48", "5", fmt.Sprint(int(bg-tcell.ColorValid)))
 	}
 
 	return fmt.Sprintf("\x1b[%sm", strings.Join(params, ";"))
