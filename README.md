@@ -88,6 +88,49 @@ idxs, err := fuzzyfinder.FindMulti(
 )
 ```
 
+## Development
+
+### Building the example application
+
+To build the example application with the latest changes, run:
+
+```bash
+go build -o /tmp/cli example/cli/main.go
+```
+
+### Running the example application
+
+The fuzzy finder requires an interactive terminal. When running these commands, ensure you are in a terminal where you can interact with the UI (type, use arrow keys, etc.). The error `open /dev/tty: no such device or address` indicates that the program is not running in an interactive terminal.
+
+- **With border:**
+  ```bash
+  seq 1 10 | /tmp/cli --border
+  ```
+- **With height limit (e.g., 5 items):**
+  ```bash
+  seq 1 100 | /tmp/cli --height 5
+  ```
+- **With border and height limit:**
+  ```bash
+  seq 1 100 | /tmp/cli --border --height 5
+  ```
+- **With custom border characters (e.g., circular edges):**
+  ```bash
+  seq 1 10 | /tmp/cli --border --border-chars "╭╮╰╯─│"
+  ```
+  - **With custom border characters (e.g., long square edges):**
+  ```bash
+  seq 1 10 | /tmp/cli --border --border-chars "▛▜▙▟─│"
+  ```
+
+### Running tests
+
+To run the project's tests, run:
+
+```bash
+go test ./...
+```
+
 ## Motivation
 Fuzzy-finder command-line tools such that
 [fzf](https://github.com/junegunn/fzf), [fzy](https://github.com/jhawthorn/fzy), or [skim](https://github.com/lotabout/skim)

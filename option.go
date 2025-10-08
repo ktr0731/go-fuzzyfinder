@@ -20,6 +20,9 @@ type opt struct {
 	selectOne     bool
 	preselected   func(i int) bool
 	height        int
+	border        bool
+	width         int
+	borderChars   []rune
 }
 
 type mode int
@@ -39,6 +42,8 @@ var defaultOption = opt{
 	promptString:  "> ",
 	hotReloadLock: &sync.Mutex{}, // this won't resolve the race condition but avoid nil panic
 	preselected:   func(i int) bool { return false },
+	border:        true,
+	borderChars:   []rune{'╭', '╮', '╰', '╯', '─', '│'},
 }
 
 // Option represents available fuzzy-finding options.
@@ -172,5 +177,36 @@ func WithHeight(height int) Option {
 			return
 		}
 		o.height = height
+	}
+}
+
+// WithBorder enables drawing a border around the finder.
+func WithBorder() Option {
+	return func(o *opt) {
+		o.border = true
+	}
+}
+
+// WithWidth specifies the width of the fuzzy finder.
+// The width must be a positive value.
+func WithWidth(width int) Option {
+	return func(o *opt) {
+		if width <= 0 {
+			log.Println("warning: WithWidth received a non-positive value, ignoring.")
+			return
+		}
+		o.width = width
+	}
+}
+
+// WithBorderChars specifies the characters to use for the border.
+// The slice must contain 6 runes: top-left, top-right, bottom-left, bottom-right, horizontal, vertical.
+func WithBorderChars(chars []rune) Option {
+	return func(o *opt) {
+		if len(chars) != 6 {
+			log.Println("warning: WithBorderChars received a slice with an invalid number of characters, ignoring.")
+			return
+		}
+		o.borderChars = chars
 	}
 }

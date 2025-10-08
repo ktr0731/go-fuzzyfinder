@@ -188,6 +188,14 @@ func (f *finder) updateItems(items []string, matched []matching.Matched) {
 	f.eventCh <- struct{}{}
 }
 
+func (f *finder) listWidth() int {
+	if f.opt.width > 0 {
+		return f.opt.width
+	}
+	width, _ := f.term.Size()
+	return width
+}
+
 func (f *finder) listHeight() int {
 	if f.opt.height > 0 {
 		return f.opt.height
@@ -196,17 +204,77 @@ func (f *finder) listHeight() int {
 	return height
 }
 
-// _draw is used from draw with a timer.
-func (f *finder) _draw() {
-	width, _ := f.term.Size()
-	f.term.Clear()
+func (f *finder) _drawBorder(width, height int) {
+	// Default border characters
+	topLeft := '┌'
+	topRight := '┐'
+	bottomLeft := '└'
+	bottomRight := '┘'
+	horizontal := '─'
+	vertical := '│'
 
-	maxWidth := width
-	if f.opt.previewFunc != nil {
-		maxWidth = width/2 - 1
+	if len(f.opt.borderChars) == 6 {
+		topLeft = f.opt.borderChars[0]
+		topRight = f.opt.borderChars[1]
+		bottomLeft = f.opt.borderChars[2]
+		bottomRight = f.opt.borderChars[3]
+		horizontal = f.opt.borderChars[4]
+		vertical = f.opt.borderChars[5]
 	}
 
-	maxHeight := f.listHeight()
+	// Top line
+	f.term.SetContent(0, 0, topLeft, nil, tcell.StyleDefault)
+	for i := 1; i < width-1; i++ {
+		f.term.SetContent(i, 0, horizontal, nil, tcell.StyleDefault)
+	}
+	f.term.SetContent(width-1, 0, topRight, nil, tcell.StyleDefault)
+
+	// Bottom line
+	f.term.SetContent(0, height-1, bottomLeft, nil, tcell.StyleDefault)
+	for i := 1; i < width-1; i++ {
+		f.term.SetContent(i, height-1, horizontal, nil, tcell.StyleDefault)
+	}
+	f.term.SetContent(width-1, height-1, bottomRight, nil, tcell.StyleDefault)
+
+	// Side lines
+	for i := 1; i < height-1; i++ {
+		f.term.SetContent(0, i, vertical, nil, tcell.StyleDefault)
+		f.term.SetContent(width-1, i, vertical, nil, tcell.StyleDefault)
+	}
+}
+
+// _draw is used from draw with a timer.
+func (f *finder) _draw() {
+	_, _ = f.term.Size()
+	f.term.Clear()
+
+	// Calculate the effective width and height for the content area
+	contentWidth := f.listWidth()
+	contentHeight := f.listHeight()
+
+	// If border is enabled, adjust content area and calculate border offsets
+	var borderOffsetX, borderOffsetY int
+	if f.opt.border {
+		borderOffsetX = 1
+		borderOffsetY = 1
+		contentWidth -= 2  // 1 for left border, 1 for right border
+		contentHeight -= 2 // 1 for top border, 1 for bottom border
+	}
+
+	// Draw the border if enabled
+	if f.opt.border {
+		f._drawBorder(contentWidth+2*borderOffsetX, contentHeight+2*borderOffsetY) // Draw border around the content area + padding
+	}
+
+	// Now draw the content within the adjusted contentWidth and contentHeight,
+	// applying borderOffsetX and borderOffsetY to all SetContent/ShowCursor calls.
+
+	maxWidth := contentWidth
+	if f.opt.previewFunc != nil {
+		maxWidth = contentWidth/2 - 1
+	}
+
+	maxHeight := contentHeight
 
 	// prompt line
 	var promptLinePad int
@@ -216,7 +284,7 @@ func (f *finder) _draw() {
 			Foreground(tcell.ColorBlue).
 			Background(tcell.ColorDefault)
 
-		f.term.SetContent(promptLinePad, maxHeight-1, r, nil, style)
+		f.term.SetContent(borderOffsetX+promptLinePad, borderOffsetY+maxHeight-1, r, nil, style)
 		promptLinePad++
 	}
 	var r rune
@@ -228,10 +296,10 @@ func (f *finder) _draw() {
 			Bold(true)
 
 		// Add a space between '>' and runes.
-		f.term.SetContent(promptLinePad+w, maxHeight-1, r, nil, style)
+		f.term.SetContent(borderOffsetX+promptLinePad+w, borderOffsetY+maxHeight-1, r, nil, style)
 		w += runewidth.RuneWidth(r)
 	}
-	f.term.ShowCursor(promptLinePad+f.state.cursorX, maxHeight-1)
+	f.term.ShowCursor(borderOffsetX+promptLinePad+f.state.cursorX, borderOffsetY+maxHeight-1)
 
 	maxHeight--
 
@@ -242,7 +310,7 @@ func (f *finder) _draw() {
 			style := tcell.StyleDefault.
 				Foreground(tcell.ColorGreen).
 				Background(tcell.ColorDefault)
-			f.term.SetContent(2+w, maxHeight-1, r, nil, style)
+			f.term.SetContent(borderOffsetX+2+w, borderOffsetY+maxHeight-1, r, nil, style)
 			w += runewidth.RuneWidth(r)
 		}
 		maxHeight--
@@ -254,7 +322,7 @@ func (f *finder) _draw() {
 			Foreground(tcell.ColorYellow).
 			Background(tcell.ColorDefault)
 
-		f.term.SetContent(2+i, maxHeight-1, r, nil, style)
+		f.term.SetContent(borderOffsetX+2+i, borderOffsetY+maxHeight-1, r, nil, style)
 	}
 	maxHeight--
 
@@ -275,8 +343,8 @@ func (f *finder) _draw() {
 				Foreground(tcell.ColorRed).
 				Background(tcell.ColorBlack)
 
-			f.term.SetContent(0, maxHeight-1-i, '>', nil, style)
-			f.term.SetContent(1, maxHeight-1-i, ' ', nil, style)
+			f.term.SetContent(borderOffsetX+0, borderOffsetY+maxHeight-1-i, '>', nil, style)
+			f.term.SetContent(borderOffsetX+1, borderOffsetY+maxHeight-1-i, ' ', nil, style)
 		}
 
 		if f.opt.multi {
@@ -285,7 +353,7 @@ func (f *finder) _draw() {
 					Foreground(tcell.ColorRed).
 					Background(tcell.ColorBlack)
 
-				f.term.SetContent(1, maxHeight-1-i, '>', nil, style)
+				f.term.SetContent(borderOffsetX+1, borderOffsetY+maxHeight-1-i, '>', nil, style)
 			}
 		}
 
@@ -326,11 +394,11 @@ func (f *finder) _draw() {
 			rw := runewidth.RuneWidth(r)
 			// Shorten item cells.
 			if w+rw+2 > maxWidth {
-				f.term.SetContent(w, maxHeight-1-i, '.', nil, style)
-				f.term.SetContent(w+1, maxHeight-1-i, '.', nil, style)
+				f.term.SetContent(borderOffsetX+w, borderOffsetY+maxHeight-1-i, '.', nil, style)
+				f.term.SetContent(borderOffsetX+w+1, borderOffsetY+maxHeight-1-i, '.', nil, style)
 				break
 			} else {
-				f.term.SetContent(w, maxHeight-1-i, r, nil, style)
+				f.term.SetContent(borderOffsetX+w, borderOffsetY+maxHeight-1-i, r, nil, style)
 				w += rw
 			}
 		}
@@ -532,6 +600,10 @@ func (f *finder) readKey(ctx context.Context) error {
 	defer f.stateMu.Unlock()
 
 	screenHeight := f.listHeight()
+	// If border is enabled, the screenHeight available for content is reduced by 2 (top and bottom border)
+	if f.opt.border {
+		screenHeight -= 2
+	}
 	matchedLinesCount := len(f.state.matched)
 
 	// Max number of lines to scroll by using PgUp and PgDn
@@ -655,6 +727,10 @@ func (f *finder) readKey(ctx context.Context) error {
 
 		width, _ := f.term.Size()
 		height := f.listHeight()
+		// If border is enabled, the height available for content is reduced by 2 (top and bottom border)
+		if f.opt.border {
+			height -= 2
+		}
 		itemAreaHeight := height - 2 - 1
 		if itemAreaHeight >= 0 && f.state.cursorY > itemAreaHeight {
 			f.state.cursorY = itemAreaHeight
