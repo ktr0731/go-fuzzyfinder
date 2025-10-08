@@ -188,9 +188,17 @@ func (f *finder) updateItems(items []string, matched []matching.Matched) {
 	f.eventCh <- struct{}{}
 }
 
+func (f *finder) listHeight() int {
+	if f.opt.height > 0 {
+		return f.opt.height
+	}
+	_, height := f.term.Size()
+	return height
+}
+
 // _draw is used from draw with a timer.
 func (f *finder) _draw() {
-	width, height := f.term.Size()
+	width, _ := f.term.Size()
 	f.term.Clear()
 
 	maxWidth := width
@@ -198,7 +206,7 @@ func (f *finder) _draw() {
 		maxWidth = width/2 - 1
 	}
 
-	maxHeight := height
+	maxHeight := f.listHeight()
 
 	// prompt line
 	var promptLinePad int
@@ -523,7 +531,7 @@ func (f *finder) readKey(ctx context.Context) error {
 	f.stateMu.Lock()
 	defer f.stateMu.Unlock()
 
-	_, screenHeight := f.term.Size()
+	screenHeight := f.listHeight()
 	matchedLinesCount := len(f.state.matched)
 
 	// Max number of lines to scroll by using PgUp and PgDn
@@ -645,7 +653,8 @@ func (f *finder) readKey(ctx context.Context) error {
 	case *tcell.EventResize:
 		f.term.Clear()
 
-		width, height := f.term.Size()
+		width, _ := f.term.Size()
+		height := f.listHeight()
 		itemAreaHeight := height - 2 - 1
 		if itemAreaHeight >= 0 && f.state.cursorY > itemAreaHeight {
 			f.state.cursorY = itemAreaHeight
@@ -896,10 +905,10 @@ func isInTesting() bool {
 	return flag.Lookup("test.v") != nil
 }
 
-func consumeIterator(iter *ansisgr.Iterator, r rune) {
+func consumeIterator(iter *ansisgr.Iterator, stopRune rune) {
 	for {
 		r, _, ok := iter.Next()
-		if !ok || r == '\n' {
+		if !ok || r == stopRune {
 			return
 		}
 	}

@@ -2,6 +2,7 @@ package fuzzyfinder
 
 import (
 	"context"
+	"log"
 	"sync"
 )
 
@@ -18,6 +19,7 @@ type opt struct {
 	query         string
 	selectOne     bool
 	preselected   func(i int) bool
+	height        int
 }
 
 type mode int
@@ -158,5 +160,17 @@ func WithSelectOne() Option {
 func WithPreselected(f func(i int) bool) Option {
 	return func(o *opt) {
 		o.preselected = f
+	}
+}
+
+// WithHeight specifies the height of the fuzzy finder.
+// The height must be a positive value.
+func WithHeight(height int) Option {
+	return func(o *opt) {
+		if height <= 0 {
+			log.Println("warning: WithHeight received a non-positive value, ignoring.")
+			return
+		}
+		o.height = height
 	}
 }
