@@ -88,6 +88,94 @@ idxs, err := fuzzyfinder.FindMulti(
 )
 ```
 
+### Customizing appearance
+
+You can customize the fuzzy finder's dimensions and border using several options:
+
+``` go
+idx, err := fuzzyfinder.Find(
+    tracks,
+    func(i int) string {
+        return tracks[i].Name
+    },
+    fuzzyfinder.WithHeight(10),              // Limit height to 10 lines
+    fuzzyfinder.WithWidth(80),               // Limit width to 80 columns
+    fuzzyfinder.WithBorder(),                // Enable border
+    fuzzyfinder.WithBorderChars([]rune{'╭', '╮', '╰', '╯', '─', '│'}), // Custom border style
+)
+```
+
+**Available options:**
+- `WithHeight(int)` - Set maximum height in lines. Box will be positioned at bottom of terminal (like fzf).
+- `WithWidth(int)` - Set maximum width in columns. Box will be centered horizontally.
+- `WithBorder()` - Enable border around the finder. Border is enabled by default.
+- `WithBorderChars([]rune)` - Customize border characters `[topLeft, topRight, bottomLeft, bottomRight, horizontal, vertical]`.
+
+**Note:** When `WithHeight()` is used, the finder box appears at the **bottom** of the terminal (similar to fzf), not centered. This leaves the top of your terminal free for output or context.
+
+## Development
+
+### Building the example application
+
+To build the example application with the latest changes, run:
+
+```bash
+go build -o /tmp/cli example/cli/main.go
+```
+
+### Running the example application
+
+The fuzzy finder requires an interactive terminal. When running these commands, ensure you are in a terminal where you can interact with the UI (type, use arrow keys, etc.). The error `open /dev/tty: no such device or address` indicates that the program is not running in an interactive terminal.
+
+- **With border:**
+  ```bash
+  seq 1 10 | /tmp/cli --border
+  ```
+- **With height limit (e.g., 5 items):**
+  ```bash
+  seq 1 100 | /tmp/cli --height 5
+  ```
+- **With border and height limit:**
+  ```bash
+  seq 1 100 | /tmp/cli --border --height 5
+  ```
+- **With custom border characters (e.g., circular edges):**
+  ```bash
+  seq 1 10 | /tmp/cli --border --border-chars "╭╮╰╯─│"
+  ```
+  - **With custom border characters (e.g., long square edges):**
+  ```bash
+  seq 1 10 | /tmp/cli --border --border-chars "▛▜▙▟─│"
+  ```
+
+### Running tests
+
+To run the project's tests, run:
+
+```bash
+go test ./...
+```
+
+### Testing scrolling with height constraint
+
+To verify scrolling works correctly with height constraints, you can test manually:
+
+```bash
+go build -o /tmp/cli example/cli/main.go
+seq 1 100 | /tmp/cli --height 8 --border
+```
+
+This creates a finder with:
+- 100 items to scroll through
+- Height limited to 8 lines
+- Border enabled
+- Positioned at bottom of terminal
+
+You should be able to:
+- ✅ Scroll through all 100 items using arrow keys
+- ✅ Use PgUp/PgDn to page through the list
+- ✅ Navigate the entire list, not just visible items
+
 ## Motivation
 Fuzzy-finder command-line tools such that
 [fzf](https://github.com/junegunn/fzf), [fzy](https://github.com/jhawthorn/fzy), or [skim](https://github.com/lotabout/skim)
