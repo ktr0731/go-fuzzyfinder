@@ -88,6 +88,31 @@ idxs, err := fuzzyfinder.FindMulti(
 )
 ```
 
+### Customizing appearance
+
+You can customize the fuzzy finder's dimensions and border using several options:
+
+``` go
+idx, err := fuzzyfinder.Find(
+    tracks,
+    func(i int) string {
+        return tracks[i].Name
+    },
+    fuzzyfinder.WithHeight(10),              // Limit height to 10 lines
+    fuzzyfinder.WithWidth(80),               // Limit width to 80 columns
+    fuzzyfinder.WithBorder(),                // Enable border
+    fuzzyfinder.WithBorderChars([]rune{'╭', '╮', '╰', '╯', '─', '│'}), // Custom border style
+)
+```
+
+**Available options:**
+- `WithHeight(int)` - Set maximum height in lines. Box will be positioned at bottom of terminal (like fzf).
+- `WithWidth(int)` - Set maximum width in columns. Box will be centered horizontally.
+- `WithBorder()` - Enable border around the finder. Border is enabled by default.
+- `WithBorderChars([]rune)` - Customize border characters `[topLeft, topRight, bottomLeft, bottomRight, horizontal, vertical]`.
+
+**Note:** When `WithHeight()` is used, the finder box appears at the **bottom** of the terminal (similar to fzf), not centered. This leaves the top of your terminal free for output or context.
+
 ## Development
 
 ### Building the example application
@@ -130,6 +155,26 @@ To run the project's tests, run:
 ```bash
 go test ./...
 ```
+
+### Testing scrolling with height constraint
+
+To verify scrolling works correctly with height constraints, you can test manually:
+
+```bash
+go build -o /tmp/cli example/cli/main.go
+seq 1 100 | /tmp/cli --height 8 --border
+```
+
+This creates a finder with:
+- 100 items to scroll through
+- Height limited to 8 lines
+- Border enabled
+- Positioned at bottom of terminal
+
+You should be able to:
+- ✅ Scroll through all 100 items using arrow keys
+- ✅ Use PgUp/PgDn to page through the list
+- ✅ Navigate the entire list, not just visible items
 
 ## Motivation
 Fuzzy-finder command-line tools such that

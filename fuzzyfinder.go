@@ -578,15 +578,18 @@ func (f *finder) readKey(ctx context.Context) error {
 	f.stateMu.Lock()
 	defer f.stateMu.Unlock()
 
-	screenHeight := f.listHeight()
-	// If border is enabled, the screenHeight available for content is reduced by 2 (top and bottom border)
-	if f.opt.border {
-		screenHeight -= 2
+	// Compute layout to get actual items area height
+	layout, err := f.computeLayout()
+	if err != nil {
+		// If layout computation fails, use safe defaults
+		return nil
 	}
+
+	itemAreaHeight := layout.items.height
 	matchedLinesCount := len(f.state.matched)
 
 	// Max number of lines to scroll by using PgUp and PgDn
-	var pageScrollBy = screenHeight - 3
+	var pageScrollBy = itemAreaHeight
 
 	switch e := e.(type) {
 	case *tcell.EventKey:
@@ -652,7 +655,7 @@ func (f *finder) readKey(ctx context.Context) error {
 			if f.state.y+1 < matchedLinesCount {
 				f.state.y++
 			}
-			if f.state.cursorY+1 < min(matchedLinesCount, screenHeight-2) {
+			if f.state.cursorY+1 < min(matchedLinesCount, itemAreaHeight) {
 				f.state.cursorY++
 			}
 		case tcell.KeyDown, tcell.KeyCtrlJ, tcell.KeyCtrlN:
@@ -664,7 +667,7 @@ func (f *finder) readKey(ctx context.Context) error {
 			}
 		case tcell.KeyPgUp:
 			f.state.y += min(pageScrollBy, matchedLinesCount-1-f.state.y)
-			maxCursorY := min(screenHeight-3, matchedLinesCount-1)
+			maxCursorY := min(itemAreaHeight-1, matchedLinesCount-1)
 			f.state.cursorY += min(pageScrollBy, maxCursorY-f.state.cursorY)
 		case tcell.KeyPgDn:
 			f.state.y -= min(pageScrollBy, f.state.y)
@@ -704,18 +707,18 @@ func (f *finder) readKey(ctx context.Context) error {
 	case *tcell.EventResize:
 		f.term.Clear()
 
-		width, _ := f.term.Size()
-		height := f.listHeight()
-		// If border is enabled, the height available for content is reduced by 2 (top and bottom border)
-		if f.opt.border {
-			height -= 2
-		}
-		itemAreaHeight := height - 2 - 1
-		if itemAreaHeight >= 0 && f.state.cursorY > itemAreaHeight {
-			f.state.cursorY = itemAreaHeight
+		// Recompute layout with new terminal size
+		resizeLayout, err := f.computeLayout()
+		if err != nil {
+			return nil
 		}
 
-		maxLineWidth := width - 2 - 1
+		// Adjust cursor position if it's now out of bounds
+		if resizeLayout.items.height > 0 && f.state.cursorY >= resizeLayout.items.height {
+			f.state.cursorY = resizeLayout.items.height - 1
+		}
+
+		maxLineWidth := resizeLayout.list.width - 2
 		if maxLineWidth < 0 {
 			f.state.input = nil
 			f.state.cursorX = 0
