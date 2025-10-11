@@ -67,6 +67,22 @@ type state struct {
 	selection map[int]int
 	// selectionIdx holds the next index, which is used to a selection's value.
 	selectionIdx int
+
+	// Text selection state for input field
+	// selectionStart and selectionEnd are indices in the input rune slice
+	// When selectionStart == selectionEnd, there's no selection
+	selectionStart int
+	selectionEnd   int
+
+	// Undo history for text editing
+	undoHistory []undoState
+	undoIndex   int // Current position in undo history (-1 means no history)
+
+	// Mouse state for tracking clicks and drags
+	mouseDownX     int       // X position where mouse was pressed
+	mouseDownTime  time.Time // Time of last mouse down for double-click detection
+	isDragging     bool      // Whether we're currently dragging to select
+	lastClickCount int       // Number of consecutive clicks (1=single, 2=double)
 }
 
 type finder struct {
@@ -96,6 +112,9 @@ func (f *finder) initFinder(items []string, matched []matching.Matched, opt opt)
 		if err := f.term.Init(); err != nil {
 			return errors.Wrap(err, "failed to initialize screen")
 		}
+
+		// Enable mouse support
+		f.term.EnableMouse()
 
 		eventsChan := make(chan tcell.Event)
 		go f.term.ChannelEvents(eventsChan, nil)
@@ -145,6 +164,12 @@ func (f *finder) initFinder(items []string, matched []matching.Matched, opt opt)
 		f.state.y = len(f.state.matched) - 1
 	}
 
+	// Initialize undo/redo state
+	f.state.undoHistory = make([]undoState, 0, maxUndoHistory)
+	f.state.undoIndex = -1
+	f.state.selectionStart = 0
+	f.state.selectionEnd = 0
+
 	if !isInTesting() {
 		f.drawTimer = time.AfterFunc(0, func() {
 			f.stateMu.Lock()
@@ -185,14 +210,6 @@ func (f *finder) updateItems(items []string, matched []matching.Matched) {
 
 	f.stateMu.Unlock()
 	f.eventCh <- struct{}{}
-}
-
-func (f *finder) listHeight() int {
-	if f.opt.height > 0 {
-		return f.opt.height
-	}
-	_, height := f.term.Size()
-	return height
 }
 
 // _drawBorder draws a border around the specified area.
@@ -272,13 +289,29 @@ func (f *finder) _draw() {
 		f.term.SetContent(layout.prompt.x+promptLinePad, layout.prompt.y, r, nil, style)
 		promptLinePad++
 	}
-	var r rune
+
+	// Get selection range for highlighting
+	var selStart, selEnd int
+	hasSelection := f.hasSelection()
+	if hasSelection {
+		selStart, selEnd = f.getSelectionRange()
+	}
+
 	var w int
-	for _, r = range f.state.input {
+	for i, r := range f.state.input {
 		style := tcell.StyleDefault.
 			Foreground(tcell.ColorDefault).
 			Background(tcell.ColorDefault).
 			Bold(true)
+
+		// Highlight selected text
+		if hasSelection && i >= selStart && i < selEnd {
+			style = style.
+				Foreground(tcell.ColorBlack).
+				Background(tcell.ColorWhite).
+				Bold(true)
+		}
+
 		f.term.SetContent(layout.prompt.x+promptLinePad+w, layout.prompt.y, r, nil, style)
 		w += runewidth.RuneWidth(r)
 	}
@@ -594,9 +627,18 @@ func (f *finder) readKey(ctx context.Context) error {
 	switch e := e.(type) {
 	case *tcell.EventKey:
 		switch e.Key() {
-		case tcell.KeyEsc, tcell.KeyCtrlC, tcell.KeyCtrlD:
+		case tcell.KeyEsc, tcell.KeyCtrlD, tcell.KeyCtrlQ:
 			return ErrAbort
+		case tcell.KeyCtrlC:
+			// Ctrl+C copies selected text (if any)
+			f.copyToClipboard()
+			return nil
 		case tcell.KeyBackspace, tcell.KeyBackspace2:
+			f.saveUndoState()
+			// If there's a selection, delete it
+			if f.deleteSelection() {
+				return nil
+			}
 			if len(f.state.input) == 0 {
 				return nil
 			}
@@ -608,6 +650,11 @@ func (f *finder) readKey(ctx context.Context) error {
 			f.state.x--
 			f.state.input = append(f.state.input[:x-1], f.state.input[x:]...)
 		case tcell.KeyDelete:
+			f.saveUndoState()
+			// If there's a selection, delete it
+			if f.deleteSelection() {
+				return nil
+			}
 			if f.state.x == len(f.state.input) {
 				return nil
 			}
@@ -672,6 +719,15 @@ func (f *finder) readKey(ctx context.Context) error {
 		case tcell.KeyPgDn:
 			f.state.y -= min(pageScrollBy, f.state.y)
 			f.state.cursorY -= min(pageScrollBy, f.state.cursorY)
+		case tcell.KeyCtrlV:
+			// Paste from clipboard
+			f.pasteFromClipboard()
+		case tcell.KeyCtrlX:
+			// Cut selected text to clipboard
+			f.cutToClipboard()
+		case tcell.KeyCtrlZ:
+			// Undo
+			f.undo()
 		case tcell.KeyTab:
 			if !f.opt.multi {
 				return nil
@@ -697,6 +753,10 @@ func (f *finder) readKey(ctx context.Context) error {
 					// Discard inputted rune.
 					return nil
 				}
+
+				f.saveUndoState()
+				// Delete selection if any, then insert new character
+				f.deleteSelection()
 
 				x := f.state.x
 				f.state.input = append(f.state.input[:x], append([]rune{e.Rune()}, f.state.input[x:]...)...)
@@ -728,6 +788,68 @@ func (f *finder) readKey(ctx context.Context) error {
 			f.state.input = f.state.input[:maxLineWidth]
 			f.state.cursorX = runewidth.StringWidth(string(f.state.input))
 			f.state.x = maxLineWidth
+		}
+	case *tcell.EventMouse:
+		// Get mouse position and button info
+		mouseX, mouseY := e.Position()
+		buttons := e.Buttons()
+
+		// Get layout to determine where the click occurred
+		layout, err := f.computeLayout()
+		if err != nil {
+			return nil
+		}
+
+		// Handle mouse wheel scrolling
+		if buttons&tcell.WheelUp != 0 {
+			// Scroll up (move selection down in list)
+			if f.state.y+1 < len(f.state.matched) {
+				f.state.y++
+			}
+			if f.state.cursorY+1 < min(len(f.state.matched), layout.items.height) {
+				f.state.cursorY++
+			}
+			return nil
+		}
+		if buttons&tcell.WheelDown != 0 {
+			// Scroll down (move selection up in list)
+			if f.state.y > 0 {
+				f.state.y--
+			}
+			if f.state.cursorY > 0 {
+				f.state.cursorY--
+			}
+			return nil
+		}
+
+		// Only handle button press/release events for text editing, ignore pure motion
+		if buttons == tcell.ButtonNone && !f.state.isDragging {
+			return nil
+		}
+
+		// If click is in the prompt area, handle text editing
+		if mouseY == layout.prompt.y {
+			f.handleMouseEvent(mouseX, mouseY, buttons, layout)
+		} else if buttons&tcell.Button1 != 0 {
+			// Left-click on items list - select the clicked item
+			// Calculate which item was clicked based on Y position
+			// Items are drawn from bottom to top in the items area
+			if mouseY >= layout.items.y && mouseY < layout.items.y+layout.items.height {
+				// Calculate the item index from the click position
+				// Items are drawn bottom-up, so bottom item is at layout.items.y + layout.items.height - 1
+				clickedLineFromBottom := (layout.items.y + layout.items.height - 1) - mouseY
+
+				// Map this to the actual item in our matched list
+				// The bottom line shows the item at offset (y - cursorY)
+				itemIndex := (f.state.y - f.state.cursorY) + clickedLineFromBottom
+
+				// Bounds check
+				if itemIndex >= 0 && itemIndex < len(f.state.matched) {
+					// Update both y (actual item index) and cursorY (screen position)
+					f.state.y = itemIndex
+					f.state.cursorY = clickedLineFromBottom
+				}
+			}
 		}
 	}
 	return nil

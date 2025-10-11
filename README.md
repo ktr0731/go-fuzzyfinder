@@ -113,6 +113,28 @@ idx, err := fuzzyfinder.Find(
 
 **Note:** When `WithHeight()` is used, the finder box appears at the **bottom** of the terminal (similar to fzf), not centered. This leaves the top of your terminal free for output or context.
 
+### Text editing and mouse support
+
+The fuzzy finder includes modern text editing capabilities similar to fzf:
+
+**Keyboard shortcuts:**
+- `Ctrl+V` - Paste text from clipboard
+- `Ctrl+X` - Cut selected text to clipboard
+- `Ctrl+C` - Copy selected text to clipboard
+- `Ctrl+Z` - Undo last text edit
+- `Ctrl+D` or `Ctrl+Q` or `Esc` - Quit/abort the finder
+- `Backspace` or `Delete` - Delete selected text (if any) or single character
+
+**Mouse support:**
+- **Left-click on prompt** - Position cursor at click location in search box
+- **Left-click + drag on prompt** - Select text by dragging in search box
+- **Double-click on prompt** - Select word under cursor in search box
+- **Right-click on prompt** - Paste text from clipboard into search box
+- **Left-click on item** - Select that item in the list
+- **Mouse wheel up/down** - Scroll through the item list
+
+Selected text is highlighted with inverted colors for visibility.
+
 ## Development
 
 ### Building the example application
@@ -156,25 +178,24 @@ To run the project's tests, run:
 go test ./...
 ```
 
-### Testing scrolling with height constraint
+### Manual testing
 
-To verify scrolling works correctly with height constraints, you can test manually:
+Test text editing and mouse support:
 
 ```bash
-go build -o /tmp/cli example/cli/main.go
-seq 1 100 | /tmp/cli --height 8 --border
+seq 1 100 | /tmp/cli --height 10 --border
 ```
 
-This creates a finder with:
-- 100 items to scroll through
-- Height limited to 8 lines
-- Border enabled
-- Positioned at bottom of terminal
+**Keyboard:**
+- Type to search, Ctrl+Z to undo
+- Ctrl+C to copy, Ctrl+V to paste, Ctrl+X to cut
+- Ctrl+D or Ctrl+Q to quit
 
-You should be able to:
-- ✅ Scroll through all 100 items using arrow keys
-- ✅ Use PgUp/PgDn to page through the list
-- ✅ Navigate the entire list, not just visible items
+**Mouse:**
+- Click prompt to position cursor, drag to select
+- Double-click prompt to select word
+- Right-click prompt to paste
+- Click items to select, wheel to scroll
 
 ## Motivation
 Fuzzy-finder command-line tools such that

@@ -3,6 +3,7 @@ module github.com/ktr0731/go-fuzzyfinder
 go 1.24.5
 
 require (
+	github.com/atotto/clipboard v0.1.4
 	github.com/gdamore/tcell/v2 v2.9.0
 	github.com/google/go-cmp v0.7.0
 	github.com/google/gofuzz v1.2.0
