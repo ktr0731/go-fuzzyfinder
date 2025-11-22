@@ -67,6 +67,22 @@ type state struct {
 	selection map[int]int
 	// selectionIdx holds the next index, which is used to a selection's value.
 	selectionIdx int
+
+	// Text selection state for input field
+	// selectionStart and selectionEnd are indices in the input rune slice
+	// When selectionStart == selectionEnd, there's no selection
+	selectionStart int
+	selectionEnd   int
+
+	// Undo history for text editing
+	undoHistory []undoState
+	undoIndex   int // Current position in undo history (-1 means no history)
+
+	// Mouse state for tracking clicks and drags
+	mouseDownX     int       // X position where mouse was pressed
+	mouseDownTime  time.Time // Time of last mouse down for double-click detection
+	isDragging     bool      // Whether we're currently dragging to select
+	lastClickCount int       // Number of consecutive clicks (1=single, 2=double)
 }
 
 type finder struct {
@@ -96,6 +112,9 @@ func (f *finder) initFinder(items []string, matched []matching.Matched, opt opt)
 		if err := f.term.Init(); err != nil {
 			return errors.Wrap(err, "failed to initialize screen")
 		}
+
+		// Enable mouse support
+		f.term.EnableMouse()
 
 		eventsChan := make(chan tcell.Event)
 		go f.term.ChannelEvents(eventsChan, nil)
@@ -145,11 +164,16 @@ func (f *finder) initFinder(items []string, matched []matching.Matched, opt opt)
 		f.state.y = len(f.state.matched) - 1
 	}
 
+	// Initialize undo/redo state
+	f.state.undoHistory = make([]undoState, 0, maxUndoHistory)
+	f.state.undoIndex = -1
+	f.state.selectionStart = 0
+	f.state.selectionEnd = 0
+
 	if !isInTesting() {
 		f.drawTimer = time.AfterFunc(0, func() {
 			f.stateMu.Lock()
 			f._draw()
-			f._drawPreview()
 			f.stateMu.Unlock()
 			f.term.Show()
 		})
@@ -188,70 +212,132 @@ func (f *finder) updateItems(items []string, matched []matching.Matched) {
 	f.eventCh <- struct{}{}
 }
 
-// _draw is used from draw with a timer.
-func (f *finder) _draw() {
-	width, height := f.term.Size()
-	f.term.Clear()
+// _drawBorder draws a border around the specified area.
+func (f *finder) _drawBorder(area rect) {
+	// Default border characters
+	topLeft := '┌'
+	topRight := '┐'
+	bottomLeft := '└'
+	bottomRight := '┘'
+	horizontal := '─'
+	vertical := '│'
 
-	maxWidth := width
-	if f.opt.previewFunc != nil {
-		maxWidth = width/2 - 1
+	if len(f.opt.borderChars) == 6 {
+		topLeft = f.opt.borderChars[0]
+		topRight = f.opt.borderChars[1]
+		bottomLeft = f.opt.borderChars[2]
+		bottomRight = f.opt.borderChars[3]
+		horizontal = f.opt.borderChars[4]
+		vertical = f.opt.borderChars[5]
 	}
 
-	maxHeight := height
+	style := tcell.StyleDefault
 
-	// prompt line
+	// Top line
+	f.term.SetContent(area.x, area.y, topLeft, nil, style)
+	for i := 1; i < area.width-1; i++ {
+		f.term.SetContent(area.x+i, area.y, horizontal, nil, style)
+	}
+	f.term.SetContent(area.x+area.width-1, area.y, topRight, nil, style)
+
+	// Bottom line
+	bottomY := area.y + area.height - 1
+	f.term.SetContent(area.x, bottomY, bottomLeft, nil, style)
+	for i := 1; i < area.width-1; i++ {
+		f.term.SetContent(area.x+i, bottomY, horizontal, nil, style)
+	}
+	f.term.SetContent(area.x+area.width-1, bottomY, bottomRight, nil, style)
+
+	// Side lines
+	for i := 1; i < area.height-1; i++ {
+		f.term.SetContent(area.x, area.y+i, vertical, nil, style)
+		f.term.SetContent(area.x+area.width-1, area.y+i, vertical, nil, style)
+	}
+}
+
+// _draw is used from draw with a timer.
+func (f *finder) _draw() {
+	f.term.Clear()
+
+	// Compute layout
+	layout, err := f.computeLayout()
+	if err != nil {
+		// Layout error - terminal too small, just clear and return
+		return
+	}
+
+	// Validate layout
+	if err := layout.validate(); err != nil {
+		// Invalid layout - just clear and return
+		return
+	}
+
+	// Draw border if enabled
+	if layout.hasBorder {
+		f._drawBorder(layout.border)
+	}
+
+	// Set up dimensions for list area
+	maxWidth := layout.list.width
+
+	// Draw prompt line
 	var promptLinePad int
-
 	for _, r := range f.opt.promptString {
 		style := tcell.StyleDefault.
 			Foreground(tcell.ColorBlue).
 			Background(tcell.ColorDefault)
-
-		f.term.SetContent(promptLinePad, maxHeight-1, r, nil, style)
+		f.term.SetContent(layout.prompt.x+promptLinePad, layout.prompt.y, r, nil, style)
 		promptLinePad++
 	}
-	var r rune
+
+	// Get selection range for highlighting
+	var selStart, selEnd int
+	hasSelection := f.hasSelection()
+	if hasSelection {
+		selStart, selEnd = f.getSelectionRange()
+	}
+
 	var w int
-	for _, r = range f.state.input {
+	for i, r := range f.state.input {
 		style := tcell.StyleDefault.
 			Foreground(tcell.ColorDefault).
 			Background(tcell.ColorDefault).
 			Bold(true)
 
-		// Add a space between '>' and runes.
-		f.term.SetContent(promptLinePad+w, maxHeight-1, r, nil, style)
+		// Highlight selected text
+		if hasSelection && i >= selStart && i < selEnd {
+			style = style.
+				Foreground(tcell.ColorBlack).
+				Background(tcell.ColorWhite).
+				Bold(true)
+		}
+
+		f.term.SetContent(layout.prompt.x+promptLinePad+w, layout.prompt.y, r, nil, style)
 		w += runewidth.RuneWidth(r)
 	}
-	f.term.ShowCursor(promptLinePad+f.state.cursorX, maxHeight-1)
+	f.term.ShowCursor(layout.prompt.x+promptLinePad+f.state.cursorX, layout.prompt.y)
 
-	maxHeight--
-
-	// Header line
-	if len(f.opt.header) > 0 {
+	// Draw header line if present
+	if layout.hasHeader {
 		w = 0
 		for _, r := range runewidth.Truncate(f.opt.header, maxWidth-2, "..") {
 			style := tcell.StyleDefault.
 				Foreground(tcell.ColorGreen).
 				Background(tcell.ColorDefault)
-			f.term.SetContent(2+w, maxHeight-1, r, nil, style)
+			f.term.SetContent(layout.header.x+2+w, layout.header.y, r, nil, style)
 			w += runewidth.RuneWidth(r)
 		}
-		maxHeight--
 	}
 
-	// Number line
+	// Draw number line
 	for i, r := range fmt.Sprintf("%d/%d", len(f.state.matched), len(f.state.items)) {
 		style := tcell.StyleDefault.
 			Foreground(tcell.ColorYellow).
 			Background(tcell.ColorDefault)
-
-		f.term.SetContent(2+i, maxHeight-1, r, nil, style)
+		f.term.SetContent(layout.numberLine.x+2+i, layout.numberLine.y, r, nil, style)
 	}
-	maxHeight--
 
-	// Item lines
-	itemAreaHeight := maxHeight - 1
+	// Draw items
 	matched := f.state.matched
 	offset := f.state.cursorY
 	y := f.state.y
@@ -259,16 +345,18 @@ func (f *finder) _draw() {
 	matched = matched[y-offset:]
 
 	for i, m := range matched {
-		if i > itemAreaHeight {
+		if i >= layout.items.height {
 			break
 		}
+		// Calculate y position for this item (drawing bottom-up)
+		itemY := layout.items.y + layout.items.height - 1 - i
+
 		if i == f.state.cursorY {
 			style := tcell.StyleDefault.
 				Foreground(tcell.ColorRed).
 				Background(tcell.ColorBlack)
-
-			f.term.SetContent(0, maxHeight-1-i, '>', nil, style)
-			f.term.SetContent(1, maxHeight-1-i, ' ', nil, style)
+			f.term.SetContent(layout.items.x, itemY, '>', nil, style)
+			f.term.SetContent(layout.items.x+1, itemY, ' ', nil, style)
 		}
 
 		if f.opt.multi {
@@ -276,8 +364,7 @@ func (f *finder) _draw() {
 				style := tcell.StyleDefault.
 					Foreground(tcell.ColorRed).
 					Background(tcell.ColorBlack)
-
-				f.term.SetContent(1, maxHeight-1-i, '>', nil, style)
+				f.term.SetContent(layout.items.x+1, itemY, '>', nil, style)
 			}
 		}
 
@@ -318,23 +405,29 @@ func (f *finder) _draw() {
 			rw := runewidth.RuneWidth(r)
 			// Shorten item cells.
 			if w+rw+2 > maxWidth {
-				f.term.SetContent(w, maxHeight-1-i, '.', nil, style)
-				f.term.SetContent(w+1, maxHeight-1-i, '.', nil, style)
+				f.term.SetContent(layout.items.x+w, itemY, '.', nil, style)
+				f.term.SetContent(layout.items.x+w+1, itemY, '.', nil, style)
 				break
 			} else {
-				f.term.SetContent(w, maxHeight-1-i, r, nil, style)
+				f.term.SetContent(layout.items.x+w, itemY, r, nil, style)
 				w += rw
 			}
 		}
 	}
+
+	// Draw preview if enabled
+	if layout.hasPreview {
+		f._drawPreview(layout)
+	}
 }
 
-func (f *finder) _drawPreview() {
-	if f.opt.previewFunc == nil {
+// _drawPreview draws the preview panel using the layout information.
+func (f *finder) _drawPreview(layout Layout) {
+	if !layout.hasPreview {
 		return
 	}
 
-	width, height := f.term.Size()
+	// Get preview content
 	var idx int
 	if len(f.state.matched) == 0 {
 		idx = -1
@@ -342,105 +435,100 @@ func (f *finder) _drawPreview() {
 		idx = f.state.matched[f.state.y].Idx
 	}
 
-	iter := ansisgr.NewIterator(f.opt.previewFunc(idx, width, height))
+	// Call preview function with the preview area dimensions
+	previewContent := f.opt.previewFunc(idx, layout.preview.width, layout.preview.height)
+	iter := ansisgr.NewIterator(previewContent)
 
-	// top line
-	for i := width / 2; i < width; i++ {
+	// Draw preview border (only if not using main border, or draw inner separator)
+	borderStyle := tcell.StyleDefault.
+		Foreground(tcell.ColorBlack).
+		Background(tcell.ColorDefault)
+
+	// Top line
+	for i := 0; i < layout.preview.width; i++ {
 		var r rune
 		switch {
-		case i == width/2:
+		case i == 0:
 			r = '┌'
-		case i == width-1:
+		case i == layout.preview.width-1:
 			r = '┐'
 		default:
 			r = '─'
 		}
-
-		style := tcell.StyleDefault.
-			Foreground(tcell.ColorBlack).
-			Background(tcell.ColorDefault)
-
-		f.term.SetContent(i, 0, r, nil, style)
+		f.term.SetContent(layout.preview.x+i, layout.preview.y, r, nil, borderStyle)
 	}
-	// bottom line
-	for i := width / 2; i < width; i++ {
+
+	// Bottom line
+	bottomY := layout.preview.y + layout.preview.height - 1
+	for i := 0; i < layout.preview.width; i++ {
 		var r rune
 		switch {
-		case i == width/2:
+		case i == 0:
 			r = '└'
-		case i == width-1:
+		case i == layout.preview.width-1:
 			r = '┘'
 		default:
 			r = '─'
 		}
-
-		style := tcell.StyleDefault.
-			Foreground(tcell.ColorBlack).
-			Background(tcell.ColorDefault)
-
-		f.term.SetContent(i, height-1, r, nil, style)
+		f.term.SetContent(layout.preview.x+i, bottomY, r, nil, borderStyle)
 	}
-	// Start with h=1 to exclude each corner rune.
-	const vline = '│'
-	var wvline = runewidth.RuneWidth(vline)
-	for h := 1; h < height-1; h++ {
-		// donePreviewLine indicates the preview string of the current line identified by h is already drawn.
-		var donePreviewLine bool
-		w := width / 2
-		for i := width / 2; i < width; i++ {
-			switch {
-			// Left vertical line.
-			case i == width/2:
-				style := tcell.StyleDefault.
-					Foreground(tcell.ColorBlack).
-					Background(tcell.ColorDefault)
-				f.term.SetContent(i, h, vline, nil, style)
-				w += wvline
-			// Right vertical line.
-			case i == width-1:
-				style := tcell.StyleDefault.
-					Foreground(tcell.ColorBlack).
-					Background(tcell.ColorDefault)
-				f.term.SetContent(i, h, vline, nil, style)
-				w += wvline
-			// Spaces between left and right vertical lines.
-			case w == width/2+wvline, w == width-1-wvline:
-				style := tcell.StyleDefault.
-					Foreground(tcell.ColorDefault).
-					Background(tcell.ColorDefault)
 
-				f.term.SetContent(w, h, ' ', nil, style)
+	// Draw content area with vertical borders
+	const vline = '│'
+	wvline := runewidth.RuneWidth(vline)
+
+	for h := 1; h < layout.preview.height-1; h++ {
+		screenY := layout.preview.y + h
+		var donePreviewLine bool
+		w := 0
+
+		for i := 0; i < layout.preview.width; i++ {
+			screenX := layout.preview.x + i
+
+			switch {
+			// Left vertical line
+			case i == 0:
+				f.term.SetContent(screenX, screenY, vline, nil, borderStyle)
+				w += wvline
+			// Right vertical line
+			case i == layout.preview.width-1:
+				f.term.SetContent(screenX, screenY, vline, nil, borderStyle)
+				w += wvline
+			// Padding after left border
+			case w == wvline:
+				f.term.SetContent(screenX, screenY, ' ', nil, tcell.StyleDefault)
 				w++
-			default: // Preview text
+			// Padding before right border
+			case w == layout.preview.width-1-wvline:
+				f.term.SetContent(screenX, screenY, ' ', nil, tcell.StyleDefault)
+				w++
+			// Preview text content
+			default:
 				if donePreviewLine {
 					continue
 				}
 
 				r, rstyle, ok := iter.Next()
 				if !ok || r == '\n' {
-					// Consumed all preview characters.
 					donePreviewLine = true
 					continue
 				}
 
 				rw := runewidth.RuneWidth(r)
-				if w+rw > width-1-2 {
+				// Check if this rune would overflow
+				if w+rw > layout.preview.width-1-2 {
 					donePreviewLine = true
-
-					// Discard the rest of the current line.
 					consumeIterator(iter, '\n')
 
-					style := tcell.StyleDefault.
-						Foreground(tcell.ColorDefault).
-						Background(tcell.ColorDefault)
-
-					f.term.SetContent(w, h, '.', nil, style)
-					f.term.SetContent(w+1, h, '.', nil, style)
-
+					f.term.SetContent(screenX, screenY, '.', nil, tcell.StyleDefault)
+					if w+1 < layout.preview.width-1-2 {
+						f.term.SetContent(screenX+1, screenY, '.', nil, tcell.StyleDefault)
+					}
 					w += 2
 					continue
 				}
 
+				// Build style from ANSI SGR
 				style := tcell.StyleDefault
 				if color, ok := rstyle.Foreground(); ok {
 					switch color.Mode() {
@@ -473,7 +561,8 @@ func (f *finder) _drawPreview() {
 					Blink(rstyle.Blink()).
 					Reverse(rstyle.Reverse()).
 					StrikeThrough(rstyle.Strikethrough())
-				f.term.SetContent(w, h, r, nil, style)
+
+				f.term.SetContent(screenX, screenY, r, nil, style)
 				w += rw
 			}
 		}
@@ -487,7 +576,6 @@ func (f *finder) draw(d time.Duration) {
 	if isInTesting() {
 		// Don't use goroutine scheduling.
 		f._draw()
-		f._drawPreview()
 		f.term.Show()
 	} else {
 		f.drawTimer.Reset(d)
@@ -523,18 +611,34 @@ func (f *finder) readKey(ctx context.Context) error {
 	f.stateMu.Lock()
 	defer f.stateMu.Unlock()
 
-	_, screenHeight := f.term.Size()
+	// Compute layout to get actual items area height
+	layout, err := f.computeLayout()
+	if err != nil {
+		// If layout computation fails, use safe defaults
+		return nil
+	}
+
+	itemAreaHeight := layout.items.height
 	matchedLinesCount := len(f.state.matched)
 
 	// Max number of lines to scroll by using PgUp and PgDn
-	var pageScrollBy = screenHeight - 3
+	var pageScrollBy = itemAreaHeight
 
 	switch e := e.(type) {
 	case *tcell.EventKey:
 		switch e.Key() {
-		case tcell.KeyEsc, tcell.KeyCtrlC, tcell.KeyCtrlD:
+		case tcell.KeyEsc, tcell.KeyCtrlD, tcell.KeyCtrlQ:
 			return ErrAbort
+		case tcell.KeyCtrlC:
+			// Ctrl+C copies selected text (if any)
+			f.copyToClipboard()
+			return nil
 		case tcell.KeyBackspace, tcell.KeyBackspace2:
+			f.saveUndoState()
+			// If there's a selection, delete it
+			if f.deleteSelection() {
+				return nil
+			}
 			if len(f.state.input) == 0 {
 				return nil
 			}
@@ -546,6 +650,11 @@ func (f *finder) readKey(ctx context.Context) error {
 			f.state.x--
 			f.state.input = append(f.state.input[:x-1], f.state.input[x:]...)
 		case tcell.KeyDelete:
+			f.saveUndoState()
+			// If there's a selection, delete it
+			if f.deleteSelection() {
+				return nil
+			}
 			if f.state.x == len(f.state.input) {
 				return nil
 			}
@@ -593,7 +702,7 @@ func (f *finder) readKey(ctx context.Context) error {
 			if f.state.y+1 < matchedLinesCount {
 				f.state.y++
 			}
-			if f.state.cursorY+1 < min(matchedLinesCount, screenHeight-2) {
+			if f.state.cursorY+1 < min(matchedLinesCount, itemAreaHeight) {
 				f.state.cursorY++
 			}
 		case tcell.KeyDown, tcell.KeyCtrlJ, tcell.KeyCtrlN:
@@ -605,11 +714,20 @@ func (f *finder) readKey(ctx context.Context) error {
 			}
 		case tcell.KeyPgUp:
 			f.state.y += min(pageScrollBy, matchedLinesCount-1-f.state.y)
-			maxCursorY := min(screenHeight-3, matchedLinesCount-1)
+			maxCursorY := min(itemAreaHeight-1, matchedLinesCount-1)
 			f.state.cursorY += min(pageScrollBy, maxCursorY-f.state.cursorY)
 		case tcell.KeyPgDn:
 			f.state.y -= min(pageScrollBy, f.state.y)
 			f.state.cursorY -= min(pageScrollBy, f.state.cursorY)
+		case tcell.KeyCtrlV:
+			// Paste from clipboard
+			f.pasteFromClipboard()
+		case tcell.KeyCtrlX:
+			// Cut selected text to clipboard
+			f.cutToClipboard()
+		case tcell.KeyCtrlZ:
+			// Undo
+			f.undo()
 		case tcell.KeyTab:
 			if !f.opt.multi {
 				return nil
@@ -636,6 +754,10 @@ func (f *finder) readKey(ctx context.Context) error {
 					return nil
 				}
 
+				f.saveUndoState()
+				// Delete selection if any, then insert new character
+				f.deleteSelection()
+
 				x := f.state.x
 				f.state.input = append(f.state.input[:x], append([]rune{e.Rune()}, f.state.input[x:]...)...)
 				f.state.cursorX += runewidth.RuneWidth(e.Rune())
@@ -645,13 +767,18 @@ func (f *finder) readKey(ctx context.Context) error {
 	case *tcell.EventResize:
 		f.term.Clear()
 
-		width, height := f.term.Size()
-		itemAreaHeight := height - 2 - 1
-		if itemAreaHeight >= 0 && f.state.cursorY > itemAreaHeight {
-			f.state.cursorY = itemAreaHeight
+		// Recompute layout with new terminal size
+		resizeLayout, err := f.computeLayout()
+		if err != nil {
+			return nil
 		}
 
-		maxLineWidth := width - 2 - 1
+		// Adjust cursor position if it's now out of bounds
+		if resizeLayout.items.height > 0 && f.state.cursorY >= resizeLayout.items.height {
+			f.state.cursorY = resizeLayout.items.height - 1
+		}
+
+		maxLineWidth := resizeLayout.list.width - 2
 		if maxLineWidth < 0 {
 			f.state.input = nil
 			f.state.cursorX = 0
@@ -661,6 +788,68 @@ func (f *finder) readKey(ctx context.Context) error {
 			f.state.input = f.state.input[:maxLineWidth]
 			f.state.cursorX = runewidth.StringWidth(string(f.state.input))
 			f.state.x = maxLineWidth
+		}
+	case *tcell.EventMouse:
+		// Get mouse position and button info
+		mouseX, mouseY := e.Position()
+		buttons := e.Buttons()
+
+		// Get layout to determine where the click occurred
+		layout, err := f.computeLayout()
+		if err != nil {
+			return nil
+		}
+
+		// Handle mouse wheel scrolling
+		if buttons&tcell.WheelUp != 0 {
+			// Scroll up (move selection down in list)
+			if f.state.y+1 < len(f.state.matched) {
+				f.state.y++
+			}
+			if f.state.cursorY+1 < min(len(f.state.matched), layout.items.height) {
+				f.state.cursorY++
+			}
+			return nil
+		}
+		if buttons&tcell.WheelDown != 0 {
+			// Scroll down (move selection up in list)
+			if f.state.y > 0 {
+				f.state.y--
+			}
+			if f.state.cursorY > 0 {
+				f.state.cursorY--
+			}
+			return nil
+		}
+
+		// Only handle button press/release events for text editing, ignore pure motion
+		if buttons == tcell.ButtonNone && !f.state.isDragging {
+			return nil
+		}
+
+		// If click is in the prompt area, handle text editing
+		if mouseY == layout.prompt.y {
+			f.handleMouseEvent(mouseX, mouseY, buttons, layout)
+		} else if buttons&tcell.Button1 != 0 {
+			// Left-click on items list - select the clicked item
+			// Calculate which item was clicked based on Y position
+			// Items are drawn from bottom to top in the items area
+			if mouseY >= layout.items.y && mouseY < layout.items.y+layout.items.height {
+				// Calculate the item index from the click position
+				// Items are drawn bottom-up, so bottom item is at layout.items.y + layout.items.height - 1
+				clickedLineFromBottom := (layout.items.y + layout.items.height - 1) - mouseY
+
+				// Map this to the actual item in our matched list
+				// The bottom line shows the item at offset (y - cursorY)
+				itemIndex := (f.state.y - f.state.cursorY) + clickedLineFromBottom
+
+				// Bounds check
+				if itemIndex >= 0 && itemIndex < len(f.state.matched) {
+					// Update both y (actual item index) and cursorY (screen position)
+					f.state.y = itemIndex
+					f.state.cursorY = clickedLineFromBottom
+				}
+			}
 		}
 	}
 	return nil
@@ -896,10 +1085,10 @@ func isInTesting() bool {
 	return flag.Lookup("test.v") != nil
 }
 
-func consumeIterator(iter *ansisgr.Iterator, r rune) {
+func consumeIterator(iter *ansisgr.Iterator, stopRune rune) {
 	for {
 		r, _, ok := iter.Next()
-		if !ok || r == '\n' {
+		if !ok || r == stopRune {
 			return
 		}
 	}
