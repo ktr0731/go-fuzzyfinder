@@ -76,8 +76,7 @@ var (
 //
 // Example:
 //
-//   go test -tags fuzz -run TestFuzz -numCases 10 -numEvents 10
-//
+//	go test -tags fuzz -run TestFuzz -numCases 10 -numEvents 10
 func TestFuzz(t *testing.T) {
 	f, err := os.Create(*out)
 	if err != nil {
