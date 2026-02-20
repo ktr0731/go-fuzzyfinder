@@ -59,6 +59,9 @@ type state struct {
 	// Note that the max size of cursorY depends on max height.
 	cursorY int
 
+	// lineOffset is the horizontal scroll offset of the item line.
+	lineOffset int
+
 	input []rune
 
 	// selections holds whether a key is selected or not. Each key is
@@ -172,6 +175,7 @@ func (f *finder) updateItems(items []string, matched []matching.Matched) {
 	f.state.items = items
 	f.state.matched = matched
 	f.state.allMatched = matched
+	f.state.lineOffset = 0
 
 	// Apply preselection to any new items
 	if f.opt.multi {
@@ -301,6 +305,11 @@ func (f *finder) _draw() {
 					}
 				}
 			}
+
+			if j < f.state.lineOffset {
+				continue
+			}
+
 			if i == f.state.cursorY {
 				if hasHighlighted {
 					style = tcell.StyleDefault.
@@ -555,12 +564,18 @@ func (f *finder) readKey(ctx context.Context) error {
 		case tcell.KeyEnter:
 			return errEntered
 		case tcell.KeyLeft, tcell.KeyCtrlB:
-			if f.state.x > 0 {
+			if e.Modifiers()&tcell.ModShift == tcell.ModShift {
+				if f.state.lineOffset > 0 {
+					f.state.lineOffset--
+				}
+			} else if f.state.x > 0 {
 				f.state.cursorX -= runewidth.RuneWidth(f.state.input[f.state.x-1])
 				f.state.x--
 			}
 		case tcell.KeyRight, tcell.KeyCtrlF:
-			if f.state.x < len(f.state.input) {
+			if e.Modifiers()&tcell.ModShift == tcell.ModShift {
+				f.state.lineOffset++
+			} else if f.state.x < len(f.state.input) {
 				f.state.cursorX += runewidth.RuneWidth(f.state.input[f.state.x])
 				f.state.x++
 			}
@@ -685,6 +700,7 @@ func (f *finder) filter() {
 	f.stateMu.Lock()
 	defer f.stateMu.Unlock()
 	f.state.matched = matchedItems
+	f.state.lineOffset = 0
 	if len(f.state.matched) == 0 {
 		f.state.cursorY = 0
 		f.state.y = 0
