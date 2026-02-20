@@ -238,10 +238,9 @@ func (f *finder) _draw() {
 			style := tcell.StyleDefault.
 				Foreground(tcell.ColorGreen).
 				Background(tcell.ColorDefault)
-			f.term.SetContent(2+w, maxHeight-1, r, nil, style)
+			f.term.SetContent(2+w, 0, r, nil, style)
 			w += runewidth.RuneWidth(r)
 		}
-		maxHeight--
 	}
 
 	// Number line
@@ -256,14 +255,30 @@ func (f *finder) _draw() {
 
 	// Item lines
 	itemAreaHeight := maxHeight - 1
+	if len(f.opt.header) > 0 {
+		itemAreaHeight--
+	}
+
 	matched := f.state.matched
+	if f.state.cursorY > itemAreaHeight {
+		f.state.cursorY = itemAreaHeight
+	}
 	offset := f.state.cursorY
 	y := f.state.y
+
 	// From the first (the most bottom) item in the item lines to the end.
-	matched = matched[y-offset:]
+	if y-offset < 0 {
+		matched = matched[0:]
+	} else {
+		matched = matched[y-offset:]
+	}
 
 	for i, m := range matched {
 		if i > itemAreaHeight {
+			break
+		}
+		// If header is present, ensure we don't draw on the header line (y=0)
+		if len(f.opt.header) > 0 && maxHeight-1-i == 0 {
 			break
 		}
 		if i == f.state.cursorY {
