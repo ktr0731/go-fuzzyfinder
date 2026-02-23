@@ -123,10 +123,12 @@ func (m *TerminalMock) GetResult() string {
 				s += v
 			}
 
-			s += string(cell.Runes)
-			rw := runewidth.RuneWidth(cell.Runes[0])
-			if rw != 0 {
-				w += rw - 1
+			if len(cell.Runes) > 0 {
+				s += string(cell.Runes)
+				rw := runewidth.RuneWidth(cell.Runes[0])
+				if rw != 0 {
+					w += rw - 1
+				}
 			}
 		}
 		s += "\n"
