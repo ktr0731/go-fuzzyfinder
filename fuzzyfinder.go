@@ -42,9 +42,11 @@ func min(vars ...int) int {
 }
 
 type state struct {
-	items      []string           // All item names.
-	allMatched []matching.Matched // All items.
-	matched    []matching.Matched // Matched items against the input.
+	items        []string           // All item names.
+	searchItems  []string           // Full search strings (items + optional extra fields).
+	allMatched   []matching.Matched // All items.
+	searchHidden bool               // Whether to search hidden fields.
+	matched      []matching.Matched // Matched items against the input.
 
 	// x is the current index of the prompt line.
 	x int
@@ -58,6 +60,9 @@ type state struct {
 	// cursorY is the position of item line.
 	// Note that the max size of cursorY depends on max height.
 	cursorY int
+
+	// lineOffset is the horizontal scroll offset of the item line.
+	lineOffset int
 
 	input []rune
 
@@ -84,7 +89,7 @@ func newFinder() *finder {
 	return &finder{}
 }
 
-func (f *finder) initFinder(items []string, matched []matching.Matched, opt opt) error {
+func (f *finder) initFinder(items []string, searchItems []string, matched []matching.Matched, opt opt) error {
 	if f.term == nil {
 		screen, err := tcell.NewScreen()
 		if err != nil {
@@ -136,6 +141,7 @@ func (f *finder) initFinder(items []string, matched []matching.Matched, opt opt)
 	}
 
 	f.state.items = items
+	f.state.searchItems = searchItems
 	f.state.matched = matched
 	f.state.allMatched = matched
 
@@ -167,11 +173,13 @@ func (f *finder) initFinder(items []string, matched []matching.Matched, opt opt)
 	return nil
 }
 
-func (f *finder) updateItems(items []string, matched []matching.Matched) {
+func (f *finder) updateItems(items []string, searchItems []string, matched []matching.Matched) {
 	f.stateMu.Lock()
 	f.state.items = items
+	f.state.searchItems = searchItems
 	f.state.matched = matched
 	f.state.allMatched = matched
+	f.state.lineOffset = 0
 
 	// Apply preselection to any new items
 	if f.opt.multi {
@@ -234,10 +242,9 @@ func (f *finder) _draw() {
 			style := tcell.StyleDefault.
 				Foreground(tcell.ColorGreen).
 				Background(tcell.ColorDefault)
-			f.term.SetContent(2+w, maxHeight-1, r, nil, style)
+			f.term.SetContent(2+w, 0, r, nil, style)
 			w += runewidth.RuneWidth(r)
 		}
-		maxHeight--
 	}
 
 	// Number line
@@ -252,14 +259,30 @@ func (f *finder) _draw() {
 
 	// Item lines
 	itemAreaHeight := maxHeight - 1
+	if len(f.opt.header) > 0 {
+		itemAreaHeight--
+	}
+
 	matched := f.state.matched
+	if f.state.cursorY > itemAreaHeight {
+		f.state.cursorY = itemAreaHeight
+	}
 	offset := f.state.cursorY
 	y := f.state.y
+
 	// From the first (the most bottom) item in the item lines to the end.
-	matched = matched[y-offset:]
+	if y-offset < 0 {
+		matched = matched[0:]
+	} else {
+		matched = matched[y-offset:]
+	}
 
 	for i, m := range matched {
 		if i > itemAreaHeight {
+			break
+		}
+		// If header is present, ensure we don't draw on the header line (y=0)
+		if len(f.opt.header) > 0 && maxHeight-1-i == 0 {
 			break
 		}
 		if i == f.state.cursorY {
@@ -301,6 +324,11 @@ func (f *finder) _draw() {
 					}
 				}
 			}
+
+			if j < f.state.lineOffset {
+				continue
+			}
+
 			if i == f.state.cursorY {
 				if hasHighlighted {
 					style = tcell.StyleDefault.
@@ -555,12 +583,18 @@ func (f *finder) readKey(ctx context.Context) error {
 		case tcell.KeyEnter:
 			return errEntered
 		case tcell.KeyLeft, tcell.KeyCtrlB:
-			if f.state.x > 0 {
+			if e.Modifiers()&tcell.ModShift == tcell.ModShift {
+				if f.state.lineOffset > 0 {
+					f.state.lineOffset--
+				}
+			} else if f.state.x > 0 {
 				f.state.cursorX -= runewidth.RuneWidth(f.state.input[f.state.x-1])
 				f.state.x--
 			}
 		case tcell.KeyRight, tcell.KeyCtrlF:
-			if f.state.x < len(f.state.input) {
+			if e.Modifiers()&tcell.ModShift == tcell.ModShift {
+				f.state.lineOffset++
+			} else if f.state.x < len(f.state.input) {
 				f.state.cursorX += runewidth.RuneWidth(f.state.input[f.state.x])
 				f.state.x++
 			}
@@ -603,6 +637,9 @@ func (f *finder) readKey(ctx context.Context) error {
 			if f.state.cursorY-1 >= 0 {
 				f.state.cursorY--
 			}
+		case tcell.KeyCtrlO:
+			f.state.searchHidden = !f.state.searchHidden
+			f.eventCh <- struct{}{}
 		case tcell.KeyPgUp:
 			f.state.y += min(pageScrollBy, matchedLinesCount-1-f.state.y)
 			maxCursorY := min(screenHeight-3, matchedLinesCount-1)
@@ -679,12 +716,19 @@ func (f *finder) filter() {
 	// TODO: If input is not delete operation, it is able to
 	// reduce total iteration.
 	// FindAll may take a lot of time, so it is desired to use RLock to avoid goroutine blocking.
-	matchedItems := matching.FindAll(string(f.state.input), f.state.items, matching.WithMode(matching.Mode(f.opt.mode)))
+	var target []string
+	if f.state.searchHidden && len(f.state.searchItems) > 0 {
+		target = f.state.searchItems
+	} else {
+		target = f.state.items
+	}
+	matchedItems := matching.FindAll(string(f.state.input), target, matching.WithMode(matching.Mode(f.opt.mode)))
 	f.stateMu.RUnlock()
 
 	f.stateMu.Lock()
 	defer f.stateMu.Unlock()
 	f.state.matched = matchedItems
+	f.state.lineOffset = 0
 	if len(f.state.matched) == 0 {
 		f.state.cursorY = 0
 		f.state.y = 0
@@ -729,19 +773,25 @@ func (f *finder) find(slice interface{}, itemFunc func(i int) string, opts []Opt
 		return nil, errors.Errorf("the first argument must be a slice, but got %T", slice)
 	}
 
-	makeItems := func(sliceLen int) ([]string, []matching.Matched) {
+	makeItems := func(sliceLen int) ([]string, []string, []matching.Matched) {
 		items := make([]string, sliceLen)
+		searchItems := make([]string, sliceLen)
 		matched := make([]matching.Matched, sliceLen)
 		for i := 0; i < sliceLen; i++ {
 			items[i] = itemFunc(i)
+			searchItems[i] = items[i]
+			if opt.searchItemFunc != nil {
+				searchItems[i] += " " + opt.searchItemFunc(i)
+			}
 			matched[i] = matching.Matched{Idx: i} //nolint:exhaustivestruct
 		}
-		return items, matched
+		return items, searchItems, matched
 	}
 
 	var (
-		items   []string
-		matched []matching.Matched
+		items       []string
+		searchItems []string
+		matched     []matching.Matched
 	)
 
 	var parentContext context.Context
@@ -758,7 +808,7 @@ func (f *finder) find(slice interface{}, itemFunc func(i int) string, opts []Opt
 	if opt.hotReload && rv.Kind() == reflect.Ptr {
 		opt.hotReloadLock.Lock()
 		rvv := reflect.Indirect(rv)
-		items, matched = makeItems(rvv.Len())
+		items, searchItems, matched = makeItems(rvv.Len())
 		opt.hotReloadLock.Unlock()
 
 		go func() {
@@ -773,8 +823,8 @@ func (f *finder) find(slice interface{}, itemFunc func(i int) string, opts []Opt
 					opt.hotReloadLock.Lock()
 					curr := rvv.Len()
 					if prev != curr {
-						items, matched = makeItems(curr)
-						f.updateItems(items, matched)
+						items, searchItems, matched = makeItems(curr)
+						f.updateItems(items, searchItems, matched)
 					}
 					opt.hotReloadLock.Unlock()
 					prev = curr
@@ -782,10 +832,10 @@ func (f *finder) find(slice interface{}, itemFunc func(i int) string, opts []Opt
 			}
 		}()
 	} else {
-		items, matched = makeItems(rv.Len())
+		items, searchItems, matched = makeItems(rv.Len())
 	}
 
-	if err := f.initFinder(items, matched, opt); err != nil {
+	if err := f.initFinder(items, searchItems, matched, opt); err != nil {
 		return nil, errors.Wrap(err, "failed to initialize the fuzzy finder")
 	}
 
