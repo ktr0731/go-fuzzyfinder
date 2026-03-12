@@ -58,6 +58,9 @@ func main() {
 
 The execution result prints selected item's indexes.
 
+In `FindMulti`, press `Ctrl+S` to toggle between the all-items view and the selected-items view.
+When entering the selected-items view, its query is reset to empty.
+
 ### Preselecting items
 
 You can preselect items using the `WithPreselected` option. It works in both `Find` and `FindMulti`.

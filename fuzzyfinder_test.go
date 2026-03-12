@@ -673,6 +673,43 @@ func TestFindMulti(t *testing.T) {
 	}
 }
 
+func TestFindMulti_toggleSelectedViewClearsQueryOnEnter(t *testing.T) {
+	t.Parallel()
+
+	f, term := fuzzyfinder.NewWithMockedTerminal()
+	events := append(
+		keys([]input{
+			{tcell.KeyTab, rune(tcell.KeyTab), tcell.ModNone},
+			{tcell.KeyUp, rune(tcell.KeyUp), tcell.ModNone},
+			{tcell.KeyTab, rune(tcell.KeyTab), tcell.ModNone},
+			{tcell.KeyCtrlS, rune(tcell.KeyCtrlS), tcell.ModCtrl},
+		}...),
+		runes("glow")...,
+	)
+	events = append(events, keys([]input{
+		{tcell.KeyCtrlS, rune(tcell.KeyCtrlS), tcell.ModCtrl},
+		{tcell.KeyCtrlS, rune(tcell.KeyCtrlS), tcell.ModCtrl},
+		{tcell.KeyUp, rune(tcell.KeyUp), tcell.ModNone},
+		{tcell.KeyTab, rune(tcell.KeyTab), tcell.ModNone},
+		{tcell.KeyEnter, rune(tcell.KeyEnter), tcell.ModNone},
+	}...)...)
+	term.SetEventsV2(events...)
+
+	idxs, err := f.FindMulti(
+		tracks,
+		func(i int) string {
+			return tracks[i].Name
+		},
+	)
+	if err != nil {
+		t.Fatalf("Find must not return an error, but got '%s'", err)
+	}
+
+	if diff := cmp.Diff([]int{0}, idxs); diff != "" {
+		t.Fatalf("unexpected selection (-want +got):\n%s", diff)
+	}
+}
+
 func BenchmarkFind(b *testing.B) {
 	b.Run("normal", func(b *testing.B) {
 		b.ReportAllocs()

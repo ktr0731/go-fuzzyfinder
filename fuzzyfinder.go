@@ -47,6 +47,7 @@ type state struct {
 	allMatched   []matching.Matched // All items.
 	searchHidden bool               // Whether to search hidden fields.
 	matched      []matching.Matched // Matched items against the input.
+	showSelected bool               // Whether selected-only view is enabled.
 
 	// x is the current index of the prompt line.
 	x int
@@ -65,6 +66,14 @@ type state struct {
 	lineOffset int
 
 	input []rune
+
+	allInput   []rune
+	allX       int
+	allCursorX int
+
+	selectedInput   []rune
+	selectedX       int
+	selectedCursorX int
 
 	// selections holds whether a key is selected or not. Each key is
 	// an index of an item (Matched.Idx). Each value represents the position
@@ -167,10 +176,49 @@ func (f *finder) initFinder(items []string, searchItems []string, matched []matc
 		f.state.input = []rune(opt.query)
 		f.state.cursorX = runewidth.StringWidth(opt.query)
 		f.state.x = len(opt.query)
+	}
+	f.storeActiveInputState()
+
+	if opt.query != "" {
 		f.filter()
 	}
 
 	return nil
+}
+
+func cloneRunes(in []rune) []rune {
+	if len(in) == 0 {
+		return nil
+	}
+	out := make([]rune, len(in))
+	copy(out, in)
+	return out
+}
+
+func (f *finder) storeActiveInputState() {
+	if f.state.showSelected {
+		f.state.selectedInput = cloneRunes(f.state.input)
+		f.state.selectedX = f.state.x
+		f.state.selectedCursorX = f.state.cursorX
+		return
+	}
+
+	f.state.allInput = cloneRunes(f.state.input)
+	f.state.allX = f.state.x
+	f.state.allCursorX = f.state.cursorX
+}
+
+func (f *finder) loadActiveInputState() {
+	if f.state.showSelected {
+		f.state.input = cloneRunes(f.state.selectedInput)
+		f.state.x = f.state.selectedX
+		f.state.cursorX = f.state.selectedCursorX
+		return
+	}
+
+	f.state.input = cloneRunes(f.state.allInput)
+	f.state.x = f.state.allX
+	f.state.cursorX = f.state.allCursorX
 }
 
 func (f *finder) updateItems(items []string, searchItems []string, matched []matching.Matched) {
@@ -555,6 +603,7 @@ func (f *finder) readKey(ctx context.Context) error {
 
 	f.stateMu.Lock()
 	defer f.stateMu.Unlock()
+	defer f.storeActiveInputState()
 
 	_, screenHeight := f.term.Size()
 	matchedLinesCount := len(f.state.matched)
@@ -645,6 +694,19 @@ func (f *finder) readKey(ctx context.Context) error {
 		case tcell.KeyCtrlO:
 			f.state.searchHidden = !f.state.searchHidden
 			f.eventCh <- struct{}{}
+		case tcell.KeyCtrlS:
+			if !f.opt.multi {
+				return nil
+			}
+
+			f.state.showSelected = !f.state.showSelected
+			if f.state.showSelected {
+				f.state.selectedInput = nil
+				f.state.selectedX = 0
+				f.state.selectedCursorX = 0
+			}
+			f.loadActiveInputState()
+			f.eventCh <- struct{}{}
 		case tcell.KeyPgUp:
 			f.state.y += min(pageScrollBy, matchedLinesCount-1-f.state.y)
 			maxCursorY := min(screenHeight-3, matchedLinesCount-1)
@@ -654,6 +716,9 @@ func (f *finder) readKey(ctx context.Context) error {
 			f.state.cursorY -= min(pageScrollBy, f.state.cursorY)
 		case tcell.KeyTab:
 			if !f.opt.multi {
+				return nil
+			}
+			if len(f.state.matched) == 0 {
 				return nil
 			}
 			idx := f.state.matched[f.state.y].Idx
@@ -669,6 +734,7 @@ func (f *finder) readKey(ctx context.Context) error {
 			if f.state.cursorY > 0 {
 				f.state.cursorY--
 			}
+			f.eventCh <- struct{}{}
 		default:
 			if e.Rune() != 0 {
 				width, _ := f.term.Size()
@@ -710,25 +776,68 @@ func (f *finder) readKey(ctx context.Context) error {
 
 func (f *finder) filter() {
 	f.stateMu.RLock()
-	if len(f.state.input) == 0 {
-		f.stateMu.RUnlock()
-		f.stateMu.Lock()
-		defer f.stateMu.Unlock()
-		f.state.matched = f.state.allMatched
-		return
+	input := string(f.state.input)
+	searchHidden := f.state.searchHidden
+	showSelected := f.state.showSelected
+	items := append([]string(nil), f.state.items...)
+	searchItems := append([]string(nil), f.state.searchItems...)
+	allMatched := append([]matching.Matched(nil), f.state.allMatched...)
+	selection := make(map[int]int, len(f.state.selection))
+	for idx, pos := range f.state.selection {
+		selection[idx] = pos
+	}
+	f.stateMu.RUnlock()
+
+	baseMatched := allMatched
+	if showSelected {
+		type selectedItem struct {
+			idx int
+			pos int
+		}
+		selectedItems := make([]selectedItem, 0, len(selection))
+		for idx, pos := range selection {
+			if idx < 0 || idx >= len(items) {
+				continue
+			}
+			selectedItems = append(selectedItems, selectedItem{idx: idx, pos: pos})
+		}
+		sort.Slice(selectedItems, func(i, j int) bool {
+			return selectedItems[i].pos < selectedItems[j].pos
+		})
+		baseMatched = make([]matching.Matched, len(selectedItems))
+		for i := range selectedItems {
+			baseMatched[i] = matching.Matched{Idx: selectedItems[i].idx} //nolint:exhaustivestruct
+		}
 	}
 
-	// TODO: If input is not delete operation, it is able to
-	// reduce total iteration.
-	// FindAll may take a lot of time, so it is desired to use RLock to avoid goroutine blocking.
-	var target []string
-	if f.state.searchHidden && len(f.state.searchItems) > 0 {
-		target = f.state.searchItems
-	} else {
-		target = f.state.items
+	matchedItems := baseMatched
+	if len(input) > 0 {
+		var target []string
+		if showSelected {
+			target = make([]string, len(baseMatched))
+			for i, m := range baseMatched {
+				idx := m.Idx
+				if searchHidden && len(searchItems) > 0 {
+					target[i] = searchItems[idx]
+				} else {
+					target[i] = items[idx]
+				}
+			}
+		} else if searchHidden && len(searchItems) > 0 {
+			target = searchItems
+		} else {
+			target = items
+		}
+
+		// TODO: If input is not delete operation, it is able to reduce total iteration.
+		matchedItems = matching.FindAll(input, target, matching.WithMode(matching.Mode(f.opt.mode)))
+
+		if showSelected {
+			for i := range matchedItems {
+				matchedItems[i].Idx = baseMatched[matchedItems[i].Idx].Idx
+			}
+		}
 	}
-	matchedItems := matching.FindAll(string(f.state.input), target, matching.WithMode(matching.Mode(f.opt.mode)))
-	f.stateMu.RUnlock()
 
 	f.stateMu.Lock()
 	defer f.stateMu.Unlock()
