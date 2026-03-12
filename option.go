@@ -6,20 +6,21 @@ import (
 )
 
 type opt struct {
-	mode           mode
-	previewFunc    func(i, width, height int) string
-	previewVisible bool
-	searchItemFunc func(i int) string
-	multi          bool
-	hotReload      bool
-	hotReloadLock  sync.Locker
-	promptString   string
-	header         string
-	beginAtTop     bool
-	context        context.Context
-	query          string
-	selectOne      bool
-	preselected    func(i int) bool
+	mode                  mode
+	previewFunc           func(i, width, height int) string
+	previewVisible        bool
+	searchItemFunc        func(i int) string
+	multi                 bool
+	hotReload             bool
+	hotReloadLock         sync.Locker
+	promptString          string
+	header                string
+	beginAtTop            bool
+	context               context.Context
+	query                 string
+	selectOne             bool
+	preselected           func(i int) bool
+	autoAcceptPreselected bool
 }
 
 type mode int
@@ -178,5 +179,19 @@ func WithSelectOne() Option {
 func WithPreselected(f func(i int) bool) Option {
 	return func(o *opt) {
 		o.preselected = f
+	}
+}
+
+// WithAutoAcceptPreselected enables immediate acceptance of matched preselected items.
+//
+// This option is disabled by default.
+//
+// In Find mode, it returns the first currently matched preselected item.
+// In FindMulti mode, it returns all currently matched preselected items.
+//
+// If no matched preselected items exist, the finder falls back to the normal interactive behavior.
+func WithAutoAcceptPreselected() Option {
+	return func(o *opt) {
+		o.autoAcceptPreselected = true
 	}
 }

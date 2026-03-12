@@ -601,6 +601,108 @@ func TestFind_WithSelectOne(t *testing.T) {
 	}
 }
 
+func TestFind_WithAutoAcceptPreselected(t *testing.T) {
+	t.Parallel()
+
+	items := []string{"zero", "one", "two", "three"}
+	itemFunc := func(i int) string { return items[i] }
+
+	t.Run("default behavior unchanged without option", func(t *testing.T) {
+		t.Parallel()
+
+		ctx, cancel := context.WithTimeout(context.Background(), 200*time.Millisecond)
+		defer cancel()
+
+		f, _ := fuzzyfinder.NewWithMockedTerminal()
+		_, err := f.Find(
+			items,
+			itemFunc,
+			fuzzyfinder.WithContext(ctx),
+			fuzzyfinder.WithPreselected(func(i int) bool { return i == 1 }),
+		)
+		if !errors.Is(err, context.DeadlineExceeded) {
+			t.Fatalf("Find must remain interactive without WithAutoAcceptPreselected and return context.DeadlineExceeded, but got '%v'", err)
+		}
+	})
+
+	t.Run("auto-accepts first matched preselected item", func(t *testing.T) {
+		t.Parallel()
+
+		f, _ := fuzzyfinder.NewWithMockedTerminal()
+		idx, err := f.Find(
+			items,
+			itemFunc,
+			fuzzyfinder.WithPreselected(func(i int) bool { return i == 2 || i == 1 }),
+			fuzzyfinder.WithAutoAcceptPreselected(),
+		)
+		if err != nil {
+			t.Fatalf("Find must not return an error, but got '%s'", err)
+		}
+		if idx != 1 {
+			t.Fatalf("expected index: 1, but got %d", idx)
+		}
+	})
+
+	t.Run("auto-accept respects initial query filtering", func(t *testing.T) {
+		t.Parallel()
+
+		f, _ := fuzzyfinder.NewWithMockedTerminal()
+		idx, err := f.Find(
+			items,
+			itemFunc,
+			fuzzyfinder.WithQuery("thr"),
+			fuzzyfinder.WithPreselected(func(i int) bool { return i == 1 || i == 3 }),
+			fuzzyfinder.WithAutoAcceptPreselected(),
+		)
+		if err != nil {
+			t.Fatalf("Find must not return an error, but got '%s'", err)
+		}
+		if idx != 3 {
+			t.Fatalf("expected index: 3, but got %d", idx)
+		}
+	})
+
+	t.Run("enabled option with no matched preselected does not auto-return", func(t *testing.T) {
+		t.Parallel()
+
+		ctx, cancel := context.WithTimeout(context.Background(), 200*time.Millisecond)
+		defer cancel()
+
+		f, _ := fuzzyfinder.NewWithMockedTerminal()
+		_, err := f.Find(
+			items,
+			itemFunc,
+			fuzzyfinder.WithContext(ctx),
+			fuzzyfinder.WithQuery("thr"),
+			fuzzyfinder.WithPreselected(func(i int) bool { return i == 1 }),
+			fuzzyfinder.WithAutoAcceptPreselected(),
+		)
+		if !errors.Is(err, context.DeadlineExceeded) {
+			t.Fatalf("Find must remain interactive when no matched preselected item exists and return context.DeadlineExceeded, but got '%v'", err)
+		}
+	})
+
+	t.Run("works with WithSelectOne when no preselected match", func(t *testing.T) {
+		t.Parallel()
+
+		f, _ := fuzzyfinder.NewWithMockedTerminal()
+		idx, err := f.Find(
+			items,
+			itemFunc,
+			fuzzyfinder.WithQuery("thr"),
+			fuzzyfinder.WithPreselected(func(i int) bool { return i == 1 }),
+			fuzzyfinder.WithAutoAcceptPreselected(),
+			fuzzyfinder.WithSelectOne(),
+		)
+		if err != nil {
+			t.Fatalf("Find must not return an error, but got '%s'", err)
+		}
+		if idx != 3 {
+			t.Fatalf("expected index: 3, but got %d", idx)
+		}
+	})
+}
+
 func TestFind_error(t *testing.T) {
 	t.Parallel()
 
@@ -692,6 +794,50 @@ func TestFindMulti(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestFindMulti_WithAutoAcceptPreselected(t *testing.T) {
+	t.Parallel()
+
+	items := []string{"zero", "one", "two", "three", "four"}
+	itemFunc := func(i int) string { return items[i] }
+
+	t.Run("auto-accepts all matched preselected items", func(t *testing.T) {
+		t.Parallel()
+
+		f, _ := fuzzyfinder.NewWithMockedTerminal()
+		idxs, err := f.FindMulti(
+			items,
+			itemFunc,
+			fuzzyfinder.WithPreselected(func(i int) bool { return i == 3 || i == 1 || i == 4 }),
+			fuzzyfinder.WithAutoAcceptPreselected(),
+		)
+		if err != nil {
+			t.Fatalf("FindMulti must not return an error, but got '%s'", err)
+		}
+		if diff := cmp.Diff([]int{1, 3, 4}, idxs); diff != "" {
+			t.Fatalf("unexpected selection (-want +got):\n%s", diff)
+		}
+	})
+
+	t.Run("auto-accept respects initial query filtering", func(t *testing.T) {
+		t.Parallel()
+
+		f, _ := fuzzyfinder.NewWithMockedTerminal()
+		idxs, err := f.FindMulti(
+			items,
+			itemFunc,
+			fuzzyfinder.WithQuery("ou"),
+			fuzzyfinder.WithPreselected(func(i int) bool { return i == 1 || i == 4 }),
+			fuzzyfinder.WithAutoAcceptPreselected(),
+		)
+		if err != nil {
+			t.Fatalf("FindMulti must not return an error, but got '%s'", err)
+		}
+		if diff := cmp.Diff([]int{4}, idxs); diff != "" {
+			t.Fatalf("unexpected selection (-want +got):\n%s", diff)
+		}
+	})
 }
 
 func TestFindMulti_toggleSelectedViewClearsQueryOnEnter(t *testing.T) {

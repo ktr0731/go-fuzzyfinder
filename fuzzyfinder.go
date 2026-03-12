@@ -878,6 +878,76 @@ func (f *finder) filter() {
 	}
 }
 
+func (f *finder) autoAcceptedPreselected() ([]int, bool) {
+	if !f.opt.autoAcceptPreselected {
+		return nil, false
+	}
+
+	f.stateMu.RLock()
+	matched := append([]matching.Matched(nil), f.state.matched...)
+	selection := make(map[int]int, len(f.state.selection))
+	for idx, pos := range f.state.selection {
+		selection[idx] = pos
+	}
+	f.stateMu.RUnlock()
+
+	if len(matched) == 0 {
+		return nil, false
+	}
+
+	if !f.opt.multi {
+		for _, m := range matched {
+			if f.opt.preselected(m.Idx) {
+				return []int{m.Idx}, true
+			}
+		}
+		return nil, false
+	}
+
+	type selectedCandidate struct {
+		idx    int
+		pos    int
+		hasPos bool
+	}
+
+	candidates := make([]selectedCandidate, 0, len(matched))
+	for _, m := range matched {
+		if !f.opt.preselected(m.Idx) {
+			continue
+		}
+		c := selectedCandidate{idx: m.Idx}
+		if pos, ok := selection[m.Idx]; ok {
+			c.pos = pos
+			c.hasPos = true
+		}
+		candidates = append(candidates, c)
+	}
+
+	if len(candidates) == 0 {
+		return nil, false
+	}
+
+	sort.Slice(candidates, func(i, j int) bool {
+		if candidates[i].hasPos && candidates[j].hasPos {
+			if candidates[i].pos == candidates[j].pos {
+				return candidates[i].idx < candidates[j].idx
+			}
+			return candidates[i].pos < candidates[j].pos
+		}
+		if candidates[i].hasPos != candidates[j].hasPos {
+			return candidates[i].hasPos
+		}
+		return candidates[i].idx < candidates[j].idx
+	})
+
+	idxs := make([]int, len(candidates))
+	for i := range candidates {
+		idxs[i] = candidates[i].idx
+	}
+
+	return idxs, true
+}
+
 func (f *finder) find(slice interface{}, itemFunc func(i int) string, opts []Option) ([]int, error) {
 	if itemFunc == nil {
 		return nil, errors.New("itemFunc must not be nil")
@@ -966,6 +1036,10 @@ func (f *finder) find(slice interface{}, itemFunc func(i int) string, opts []Opt
 	}
 
 	close(inited)
+
+	if idxs, ok := f.autoAcceptedPreselected(); ok {
+		return idxs, nil
+	}
 
 	if opt.selectOne && len(f.state.matched) == 1 {
 		return []int{f.state.matched[0].Idx}, nil
