@@ -58,8 +58,20 @@ func main() {
 
 The execution result prints selected item's indexes.
 
-In `FindMulti`, press `Ctrl+S` to toggle between the all-items view and the selected-items view.
-When entering the selected-items view, its query is reset to empty.
+### Keybindings
+
+- General: `Enter` confirm selection, `Esc` / `Ctrl+C` / `Ctrl+D` abort.
+- List navigation: `Up` / `Ctrl+P` / `Ctrl+K` move up, `Down` / `Ctrl+N` / `Ctrl+J` move down.
+- Paging: `PgUp` page up, `PgDn` page down.
+- Query cursor movement: `Left` / `Ctrl+B` move left, `Right` / `Ctrl+F` move right.
+- Query jump: `Home` / `Ctrl+A` move to start, `End` / `Ctrl+E` move to end.
+- Query editing: `Backspace` delete previous rune, `Delete` delete current rune, `Ctrl+W` delete previous word, `Ctrl+U` clear from cursor to beginning.
+- Hidden search field: `Ctrl+O` toggles matching hidden fields from `WithSearchItemFunc`.
+- Preview window: `Ctrl+T` toggles preview window visibility when `WithPreviewWindow` is enabled.
+- Preview startup visibility: use `WithPreviewVisible(false)` to start with preview hidden.
+- Horizontal item scroll: `Shift+Left` scroll left, `Shift+Right` scroll right.
+- Multi-select: `Tab` toggles selection for the current item.
+- Multi-select view: `Ctrl+S` toggles all-items view and selected-items view. Entering selected-items view resets its query to empty.
 
 ### Preselecting items
 

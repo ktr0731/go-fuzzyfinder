@@ -8,6 +8,7 @@ import (
 type opt struct {
 	mode           mode
 	previewFunc    func(i, width, height int) string
+	previewVisible bool
 	searchItemFunc func(i int) string
 	multi          bool
 	hotReload      bool
@@ -35,9 +36,10 @@ const (
 )
 
 var defaultOption = opt{
-	promptString:  "> ",
-	hotReloadLock: &sync.Mutex{}, // this won't resolve the race condition but avoid nil panic
-	preselected:   func(i int) bool { return false },
+	promptString:   "> ",
+	previewVisible: true,
+	hotReloadLock:  &sync.Mutex{}, // this won't resolve the race condition but avoid nil panic
+	preselected:    func(i int) bool { return false },
 }
 
 // Option represents available fuzzy-finding options.
@@ -61,6 +63,15 @@ func WithMode(m mode) Option {
 func WithPreviewWindow(f func(i, width, height int) string) Option {
 	return func(o *opt) {
 		o.previewFunc = f
+	}
+}
+
+// WithPreviewVisible controls whether the preview window is visible at startup.
+//
+// This option has effect only when WithPreviewWindow is enabled.
+func WithPreviewVisible(visible bool) Option {
+	return func(o *opt) {
+		o.previewVisible = visible
 	}
 }
 

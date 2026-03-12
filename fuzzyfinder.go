@@ -48,6 +48,7 @@ type state struct {
 	searchHidden bool               // Whether to search hidden fields.
 	matched      []matching.Matched // Matched items against the input.
 	showSelected bool               // Whether selected-only view is enabled.
+	showPreview  bool               // Whether preview window is enabled.
 
 	// x is the current index of the prompt line.
 	x int
@@ -177,6 +178,7 @@ func (f *finder) initFinder(items []string, searchItems []string, matched []matc
 		f.state.cursorX = runewidth.StringWidth(opt.query)
 		f.state.x = len(opt.query)
 	}
+	f.state.showPreview = opt.previewFunc != nil && opt.previewVisible
 	f.storeActiveInputState()
 
 	if opt.query != "" {
@@ -250,7 +252,7 @@ func (f *finder) _draw() {
 	f.term.Clear()
 
 	maxWidth := width
-	if f.opt.previewFunc != nil {
+	if f.state.showPreview {
 		maxWidth = width/2 - 1
 	}
 
@@ -411,7 +413,7 @@ func (f *finder) _draw() {
 }
 
 func (f *finder) _drawPreview() {
-	if f.opt.previewFunc == nil {
+	if f.opt.previewFunc == nil || !f.state.showPreview {
 		return
 	}
 
@@ -693,6 +695,12 @@ func (f *finder) readKey(ctx context.Context) error {
 			}
 		case tcell.KeyCtrlO:
 			f.state.searchHidden = !f.state.searchHidden
+			f.eventCh <- struct{}{}
+		case tcell.KeyCtrlT:
+			if f.opt.previewFunc == nil {
+				return nil
+			}
+			f.state.showPreview = !f.state.showPreview
 			f.eventCh <- struct{}{}
 		case tcell.KeyCtrlS:
 			if !f.opt.multi {
