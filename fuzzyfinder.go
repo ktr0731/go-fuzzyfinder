@@ -248,7 +248,12 @@ func (f *finder) _draw() {
 	}
 
 	// Number line
-	for i, r := range fmt.Sprintf("%d/%d", len(f.state.matched), len(f.state.items)) {
+	selectedCount := 0
+	if f.opt.multi {
+		selectedCount = len(f.state.selection)
+	}
+
+	for i, r := range fmt.Sprintf("%d/%d/%d", selectedCount, len(f.state.matched), len(f.state.items)) {
 		style := tcell.StyleDefault.
 			Foreground(tcell.ColorYellow).
 			Background(tcell.ColorDefault)
