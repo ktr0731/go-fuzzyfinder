@@ -529,6 +529,11 @@ func (f *finder) readKey(ctx context.Context) error {
 	// Max number of lines to scroll by using PgUp and PgDn
 	var pageScrollBy = screenHeight - 3
 
+	occupiedLines := 2
+	if len(f.opt.header) != 0 {
+		occupiedLines++
+	}
+
 	switch e := e.(type) {
 	case *tcell.EventKey:
 		switch e.Key() {
@@ -593,7 +598,7 @@ func (f *finder) readKey(ctx context.Context) error {
 			if f.state.y+1 < matchedLinesCount {
 				f.state.y++
 			}
-			if f.state.cursorY+1 < min(matchedLinesCount, screenHeight-2) {
+			if f.state.cursorY+1 < min(matchedLinesCount, screenHeight-occupiedLines) {
 				f.state.cursorY++
 			}
 		case tcell.KeyDown, tcell.KeyCtrlJ, tcell.KeyCtrlN:
@@ -646,7 +651,7 @@ func (f *finder) readKey(ctx context.Context) error {
 		f.term.Clear()
 
 		width, height := f.term.Size()
-		itemAreaHeight := height - 2 - 1
+		itemAreaHeight := height - occupiedLines - 1
 		if itemAreaHeight >= 0 && f.state.cursorY > itemAreaHeight {
 			f.state.cursorY = itemAreaHeight
 		}
