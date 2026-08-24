@@ -6,7 +6,7 @@ require (
 	github.com/google/gofuzz v1.2.0
 	github.com/ktr0731/go-ansisgr v0.1.0
 	github.com/mattn/go-runewidth v0.0.28
-	github.com/nsf/termbox-go v1.1.1
+	github.com/nsf/termbox-go v1.1.2
 	github.com/pkg/errors v0.9.1
 )
 
