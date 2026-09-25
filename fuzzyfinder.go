@@ -160,7 +160,7 @@ func (f *finder) initFinder(items []string, matched []matching.Matched, opt opt)
 	if opt.query != "" {
 		f.state.input = []rune(opt.query)
 		f.state.cursorX = runewidth.StringWidth(opt.query)
-		f.state.x = len(opt.query)
+		f.state.x = len(f.state.input)
 		f.filter()
 	}
 

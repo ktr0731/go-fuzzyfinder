@@ -517,6 +517,26 @@ func TestFind_WithQuery(t *testing.T) {
 			return res
 		})
 	})
+
+	t.Run("multibyte initial query does not panic on Left", func(t *testing.T) {
+		t.Parallel()
+		things2 := []string{"ほげ", "ふが"}
+		thingFunc2 := func(i int) string { return things2[i] }
+		f, term := fuzzyfinder.NewWithMockedTerminal()
+		// WithQuery("ほげ") sets cursor at rune index 2; pressing Left must not panic.
+		ev := keys(
+			input{tcell.KeyLeft, rune(tcell.KeyLeft), tcell.ModNone},
+			input{tcell.KeyEnter, rune(tcell.KeyEnter), tcell.ModNone},
+		)
+		term.SetEventsV2(ev...)
+		idx, err := f.Find(things2, thingFunc2, fuzzyfinder.WithQuery("ほげ"))
+		if err != nil {
+			t.Fatalf("Find must not return an error, but got '%s'", err)
+		}
+		if idx != 0 {
+			t.Errorf("expected index 0, got %d", idx)
+		}
+	})
 }
 
 func TestFind_WithSelectOne(t *testing.T) {
